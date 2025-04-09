@@ -1,0 +1,145 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f4f7f6;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h1 {
+    color: #333;
+    font-size: 2.5em;
+}
+
+h2 {
+    margin-bottom: 20px;
+    color: #555;
+    font-weight: 400;
+}
+
+.appointment-list {
+    margin-top: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background-color: #fff;
+}
+
+thead {
+    background-color: #007bff;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+th, td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 1em;
+}
+
+td {
+    color: #666;
+}
+
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+button:focus {
+    outline: none;
+}
+
+.btn-accept {
+    background-color: #28a745;
+    color: #fff;
+    margin-right: 5px;
+}
+
+.btn-accept:hover {
+    background-color: #218838;
+    transform: scale(1.05);
+}
+
+.btn-decline {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.btn-decline:hover {
+    background-color: #c82333;
+    transform: scale(1.05);
+}
+
+.btn-cancel {
+    background-color: #ffc107;
+    color: #fff;
+}
+
+.btn-cancel:hover {
+    background-color: #e0a800;
+    transform: scale(1.05);
+}
+
+.status {
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 0.9em;
+    display: inline-block;
+}
+
+.status.pending {
+    background-color: #ffc107;
+    color: #fff;
+}
+
+.status.accepted {
+    background-color: #28a745;
+    color: #fff;
+}
+
+/* Highlight rows based on status */
+tr.accepted td {
+    background-color: #e6f7ee;
+}
+
+tr.pending td {
+    background-color: #fff9e6;
+}
+
+@media (max-width: 768px) {
+    th, td {
+        padding: 10px;
+    }
+
+    button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .btn-accept, .btn-decline, .btn-cancel {
+        margin: 5px 0;
+    }
+}

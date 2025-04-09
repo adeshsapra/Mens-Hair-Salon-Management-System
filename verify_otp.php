@@ -10,7 +10,6 @@ if (isset($_POST['verify-otp'])) {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>

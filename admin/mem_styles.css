@@ -1,0 +1,149 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* .admin-membership-container {
+    padding: 30px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin-left: 270px;
+    width: 80%;
+    margin-top: 1rem;
+}
+
+.admin-membership-container h1 {
+    font-size: 28px;
+    margin-bottom: 40px;
+    color: #333333;
+}
+
+.admin-membership-container .toggle-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 40px;
+}
+
+.admin-membership-container .toggle-buttons .toggle-btn {
+    flex: 1;
+    padding: 15px 20px;
+    margin: 0 5px;
+    border: none;
+    border-radius: 8px;
+    background-color: #f1f1f1;
+    color: #555555;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.admin-membership-container .toggle-buttons .toggle-btn.active {
+    background-color: #007bff;
+    color: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 123, 255, 0.4);
+    transform: translateY(-3px);
+}
+
+.admin-membership-container .plan-details {
+    display: none;
+    animation: fadeIn 0.5s ease-in-out;
+    margin-bottom: 30px;
+}
+
+.admin-membership-container .plan-details.active {
+    display: block;
+}
+
+.plan-details .plan-options {
+    margin-top: 20px;
+}
+
+.plan-details .plan-options label {
+    display: block;
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 10px;
+}
+
+.plan-details .plan-select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #dddddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    color: #555555;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.plan-options .plan-select:focus {
+    border-color: #007bff;
+}
+
+.plan-details  .form-section {
+    margin-top: 40px;
+}
+
+.plan-details  .text-field,
+.price-field {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 2px solid #dddddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    color: #555555;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.plan-details  .text-field:focus,
+.price-field:focus {
+    border-color: #007bff;
+}
+
+.form-section .submit-btn {
+    width: 100%;
+    padding: 15px;
+    background-color: #007bff;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.form-section .submit-btn:hover {
+    background-color: #0056b3;
+    box-shadow: 0 4px 12px rgba(0, 91, 187, 0.4);
+    transform: translateY(-2px);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+} */
+
+/* Responsive Design */
+@media (max-width: 600px) {
+    .toggle-buttons {
+        flex-direction: column;
+    }
+
+    .toggle-btn {
+        margin-bottom: 15px;
+        width: 100%;
+    }
+
+    .text-field,
+    .price-field,
+    .submit-btn {
+        font-size: 16px;
+    }
+}
