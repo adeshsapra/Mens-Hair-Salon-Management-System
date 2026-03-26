@@ -44,54 +44,58 @@ if(isset($_POST['pass'])){
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Change Password</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <main class="content">
-        <h2>Change Password</h2>
+<main class="content">
+    <div class="header-with-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h1 style="margin-bottom: 0;">Change Password</h1>
+    </div>
+
+    <div style="max-width: 600px; background: white; border-radius: 16px; box-shadow: var(--shadow-sm); border: 1px solid rgba(0,0,0,0.05); padding: 32px; margin: 0 auto;">
+        
         <?php
-                        if(isset($message))
-                        {
-                            foreach($message as $message)
-                            {
-                                echo'<div class="message">'.$message.'</div>';
-                            }
-                        }
-                        if(isset($confirm))
-                        {
-                            foreach($confirm as $confirm)
-                            {
-                                echo'<div class="confirm">'.$confirm.'</div>';
-                            }
-                        }
-                        
-            ?>
+        if(isset($message) && is_array($message)) {
+            foreach($message as $msg) {
+                if ($msg == 'Password Changed Successfully') {
+                    echo '<div style="background: #e6f4ea; color: #1e8e3e; padding: 12px 20px; border-radius: 8px; margin-bottom: 24px;"><i class="fas fa-check-circle"></i> ' . htmlspecialchars($msg) . '</div>';
+                } else {
+                    echo '<div style="background: #fce8e6; color: #d93025; padding: 12px 20px; border-radius: 8px; margin-bottom: 24px;"><i class="fas fa-exclamation-circle"></i> ' . htmlspecialchars($msg) . '</div>';
+                }
+            }
+        }
+        if(isset($confirm) && is_array($confirm)) {
+            foreach($confirm as $conf) {
+                echo '<div style="background: #e6f4ea; color: #1e8e3e; padding: 12px 20px; border-radius: 8px; margin-bottom: 24px;"><i class="fas fa-info-circle"></i> ' . htmlspecialchars($conf) . '</div>';
+            }
+        }
+        ?>
+
         <form action="change_password.php" method="POST">
-      
-        <input type="hidden" name="hide_id_user_hide" value="<?php echo  $_SESSION['user_id']; ?>">
-            <div class="form-group">
-                <label>Current Password:</label>
-                <input type="password" name="current_password" required>
+            <input type="hidden" name="hide_id_user_hide" value="<?php echo $_SESSION['user_id']; ?>">
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; color: var(--bg1); margin-bottom: 8px;">Current Password</label>
+                <div style="position: relative;">
+                    <i class="fas fa-lock" style="position: absolute; left: 14px; top: 14px; color: #999;"></i>
+                    <input type="password" name="current_password" required style="width: 100%; padding: 12px 16px 12px 40px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;" onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='#ddd'">
+                </div>
             </div>
             
-            <div class="form-group">
-                <label>New Password:</label>
-                <input type="password" name="new_password">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; color: var(--bg1); margin-bottom: 8px;">New Password</label>
+                <div style="position: relative;">
+                    <i class="fas fa-key" style="position: absolute; left: 14px; top: 14px; color: #999;"></i>
+                    <input type="password" name="new_password" required style="width: 100%; padding: 12px 16px 12px 40px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;" onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='#ddd'">
+                </div>
             </div>
             
-            <div class="form-group">
-                <label>Confirm New Password:</label>
-                <input type="password" name="confirm_password">
+            <div style="margin-bottom: 30px;">
+                <label style="display: block; font-weight: 600; color: var(--bg1); margin-bottom: 8px;">Confirm New Password</label>
+                <div style="position: relative;">
+                    <i class="fas fa-check-double" style="position: absolute; left: 14px; top: 14px; color: #999;"></i>
+                    <input type="password" name="confirm_password" required style="width: 100%; padding: 12px 16px 12px 40px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;" onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='#ddd'">
+                </div>
             </div>
             
-            <button type="submit" name="pass">Change Password</button>
+            <button type="submit" name="pass" class="app_more" style="width: 100%; display: block; border: none; padding: 14px; font-size: 16px; border-radius: 8px; cursor: pointer; text-align: center;"><i class="fas fa-save"></i> Update Password</button>
         </form>
-    </main>
-</body>
-</html>
+    </div>
+</main>

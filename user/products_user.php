@@ -1,6 +1,8 @@
 <?php 
 include 'connect.php';
-include 'header.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $errors = [];
 
@@ -55,14 +57,17 @@ if(isset($_GET['id'])){
 }
 
 if(isset($_GET['delete_all'])){
-    mysqli_query($con, "DELETE FROM `product_cart` WHERE id = '{$_SESSION['user_id']}'");
-
-    // Set grand total to 0 after all products are removed
-    mysqli_query($con, "UPDATE `product_cart` SET c_grand_total = 0 WHERE id = '{$_SESSION['user_id']}'");
-
-    header('location:products_user.php');
-    exit();
+    if(mysqli_query($con, "DELETE FROM `product_cart` WHERE id = '{$_SESSION['user_id']}'")) {
+        // Set grand total to 0 after all products are removed
+        mysqli_query($con, "UPDATE `product_cart` SET c_grand_total = 0 WHERE id = '{$_SESSION['user_id']}'");
+        header('Location: products_user.php');
+        exit();
+    } else {
+        die("Error emptying cart: " . mysqli_error($con));
+    }
 }
+
+include 'header.php'; // Included here to prevent output before header()
 
 $empty_cart_message = '';
 $select_cart = mysqli_query($con, "
@@ -79,71 +84,90 @@ if (mysqli_num_rows($select_cart) === 0) {
 <main class="content">
 <div class="product-container">
 <section class="shopping-cart">
-   <h1 class="heading">shopping cart</h1>
 
    <?php if ($empty_cart_message): ?>
-        <div class="empty-cart-message">
-         <?php echo $empty_cart_message; ?>
-         <br><a href="../eshop.php" class="empty_cart_button">Shop Now</a>
-      </div>
+        <div style="padding: 40px; text-align: center; background: white; border-radius: 14px; border: 2px dashed rgba(203,185,15,0.3); margin-top: 20px;">
+            <i class="fas fa-shopping-cart" style="font-size: 40px; color: var(--brand); margin-bottom: 16px;"></i>
+            <h3>Your Cart is Empty</h3>
+            <p style="color: #777; margin-bottom: 20px;">Looks like you haven't added anything to your cart yet.</p>
+            <a href="../eshop.php" class="app_more" style="display: inline-block; margin-top: 0;"><i class="fas fa-store"></i> Browse Products</a>
+        </div>
     <?php else: ?>
-        <table>
-            <thead>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Size</th>
-                <th>Quantity</th>
-                <th>Total Price</th>
-                <th>Action</th>
-            </thead>
-            <tbody>
-            <?php 
-                $grand_total = 0;
-                if (mysqli_num_rows($select_cart) > 0) {
-                    while ($fetch_product = mysqli_fetch_assoc($select_cart)) {
-                        $price = (float)$fetch_product['p_price'];
-                        $quantity = (int)$fetch_product['c_quantity'];
-                        $sub_total = $price * $quantity;
+        <div class="header-with-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h1 style="margin-bottom: 0;">Shopping Cart</h1>
+            <a href="../eshop.php" class="app_more" style="margin-top: 0;"><i class="fas fa-store"></i> Keep Shopping</a>
+        </div>
+        
+        <div class="table-container" style="background: white; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid rgba(0,0,0,0.05); overflow-x: auto; margin-bottom: 2rem;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="background-color: var(--bg1); color: var(--bg2);">
+                        <th style="padding: 16px; font-weight: 500;">Product</th>
+                        <th style="padding: 16px; font-weight: 500;">Details</th>
+                        <th style="padding: 16px; font-weight: 500;">Price</th>
+                        <th style="padding: 16px; font-weight: 500;">Quantity</th>
+                        <th style="padding: 16px; font-weight: 500;">Subtotal</th>
+                        <th style="padding: 16px; font-weight: 500; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php 
+                    $grand_total = 0;
+                    if (mysqli_num_rows($select_cart) > 0) {
+                        while ($fetch_product = mysqli_fetch_assoc($select_cart)) {
+                            $price = (float)$fetch_product['p_price'];
+                            $quantity = (int)$fetch_product['c_quantity'];
+                            $sub_total = $price * $quantity;
 
-                        $error_message = isset($errors[$fetch_product['c_id']]) ? $errors[$fetch_product['c_id']] : '';
-            ?>
-            <tr>
-                <td><img src="../upload_product_photos/<?php echo $fetch_product['p_img']; ?>" height="150" alt=""></td>
-                <td><?php echo $fetch_product['p_name']; ?></td> 
-                <td><?php echo number_format($price, 2); ?></td>
-                <td><?php echo $fetch_product['p_size']; ?></td>
-                <td>
-                    <form action="" method="post">
-                        <input type="hidden" name="update_quantity_id" value="<?php echo $fetch_product['c_id']; ?>">
-                        <input type="number" name="update_quantity" min="1" value="<?php echo $fetch_product['c_quantity']; ?>">
-                        <input type="submit" value="Confirm" name="update_update_btn">
-                        <?php if ($error_message): ?>
-                            <div class="message"><?php echo $error_message; ?></div>
-                        <?php endif; ?>
-                    </form>   
-                </td>
-                <td><?php echo number_format($sub_total, 2); ?></td>
-                <td><a href="products_user.php?id=<?php echo $fetch_product['c_id']; ?>" onclick="return confirm('Remove item from cart?')" class="delete-product-btn"> <i class="fas fa-trash"></i> Remove</a></td>
-            </tr>
-            <?php
-                    $grand_total += $sub_total;  
+                            $error_message = isset($errors[$fetch_product['c_id']]) ? $errors[$fetch_product['c_id']] : '';
+                ?>
+                <tr style="border-bottom: 1px solid #eee; transition: all 0.2s ease;">
+                    <td style="padding: 16px;"><img src="../upload_product_photos/<?php echo $fetch_product['p_img']; ?>" style="height: 80px; width: 80px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);" alt=""></td>
+                    <td style="padding: 16px; color: var(--bg1);">
+                        <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;"><?php echo htmlspecialchars($fetch_product['p_name']); ?></div>
+                        <div style="color: #666; font-size: 13px;"><i class="fas fa-tag"></i> Size: <?php echo htmlspecialchars($fetch_product['p_size']); ?></div>
+                    </td> 
+                    <td style="padding: 16px; font-weight: 600; color: #555;">₹<?php echo number_format($price, 2); ?></td>
+                    <td style="padding: 16px;">
+                        <form action="" method="post" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="hidden" name="update_quantity_id" value="<?php echo htmlspecialchars($fetch_product['c_id']); ?>">
+                            <input type="number" name="update_quantity" min="1" value="<?php echo htmlspecialchars($fetch_product['c_quantity']); ?>" style="width: 70px; padding: 8px; border-radius: 6px; border: 1px solid #ddd; text-align: center;">
+                            <button type="submit" name="update_update_btn" style="background: var(--bg1); color: var(--bg2); border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s;"><i class="fas fa-sync-alt"></i></button>
+                            <?php if ($error_message): ?>
+                                <span style="color: #d93025; font-size: 12px; font-weight: bold;"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error_message); ?></span>
+                            <?php endif; ?>
+                        </form>   
+                    </td>
+                    <td style="padding: 16px; font-weight: 700; color: var(--brand);">₹<?php echo number_format($sub_total, 2); ?></td>
+                    <td style="padding: 16px; text-align: right;">
+                        <a href="products_user.php?id=<?php echo htmlspecialchars($fetch_product['c_id']); ?>" onclick="return confirm('Remove item from cart?')" style="background: #fce8e6; color: #d93025; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-block; transition: 0.2s;"><i class="fas fa-trash-alt"></i> Remove</a>
+                    </td>
+                </tr>
+                <?php
+                        $grand_total += $sub_total;  
+                        }
                     }
-                }
-            ?>
-            <tr class="table-bottom" id="table-bottom">
-                <td><a href="../eshop.php" id="get-more" style="margin-top: 0;">Get More Products</a></td>
-                <td colspan="4">Grand Total</td>
-                <td><?php echo number_format($grand_total, 2); ?></td>
-                <td><a href="products_user.php?delete_all" onclick="return confirm('Are you sure you want to delete all?');" class="delete_all"> <i class="fas fa-trash"></i> Delete All </a></td>
-            </tr>
-            </tbody>
-        </table>
+                ?>
+                <tr style="background: #fafafa; border-top: 2px solid rgba(203,185,15,0.3);">
+                    <td colspan="4" style="padding: 20px 16px; text-align: right; font-weight: 600; font-size: 18px; color: var(--bg1);">Grand Total:</td>
+                    <td style="padding: 20px 16px; font-weight: 700; font-size: 20px; color: var(--brand);">₹<?php echo number_format($grand_total, 2); ?></td>
+                    <td style="padding: 20px 16px; text-align: right;">
+                        <form action="" method="get" style="margin: 0;">
+                            <input type="hidden" name="delete_all" value="1">
+                            <button type="submit" class="danger-link" style="background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-times-circle"></i> Empty Cart
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
 
-   <div class="checkout-btn">
-      <a href="checkout.php" class="proceed-btn">proceed to checkout</a>
-   </div>
-   <?php endif; ?>
+        <div class="checkout-btn" style="text-align: right;">
+            <a href="checkout.php" class="proceed-btn" style="display: inline-block; padding: 14px 32px; font-size: 18px; border-radius: 30px;"><i class="fas fa-lock"></i> Secure Checkout</a>
+        </div>
+    <?php endif; ?>
 
 </section>
 </div>

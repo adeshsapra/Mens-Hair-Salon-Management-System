@@ -1,88 +1,89 @@
-<?php 
-include 'header.php'; 
+<?php
+
+include 'header.php';
+
 include 'connect.php';
 ?>
 
 <main class="content">
-    <header class="header">
-        <div class="welcome-message">
-        <?php
-        if (isset($_SESSION['user_id'])) {
-            $user_id = $_SESSION['user_id'];
-            $query = "SELECT username, last_login FROM user_reg WHERE id = '$user_id'";
-            $result = mysqli_query($con, $query);
-            $row = mysqli_fetch_assoc($result);
+    <div class="header-with-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <?php
+            if (isset($_SESSION['user_id'])) {
+                $user_id = $_SESSION['user_id'];
+                $query = "SELECT username, last_login FROM user_reg WHERE id = '$user_id'";
+                $result = mysqli_query($con, $query);
+                $row = mysqli_fetch_assoc($result);
 
-            $username = $row['username']; 
-            $last_login = $row['last_login'] ? date('F j, Y, g:i a', strtotime($row['last_login'])) : 'Never';
+                $username = $row['username'];
+                $last_login = $row['last_login'] ? date('F j, Y', strtotime($row['last_login'])) : 'Never';
 
-            echo '<h1>Welcome, ' . htmlspecialchars($username) . '</h1>';
-        }
-        ?>
+                echo '<h1 style="margin: 0; font-size: 28px;">Hello, ' . htmlspecialchars($username) . '! <span style="font-size: 20px; font-weight: normal; color: #777;">Welcome back.</span></h1>';
+            }
+            ?>
         </div>
-        <div class="logout">
-            <a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        <div style="background: var(--bg2); color: var(--bg1); padding: 8px 16px; border-radius: 30px; font-size: 14px; font-weight: 600;">
+            <i class="fas fa-calendar-day" style="margin-right: 6px;"></i> <?php echo date('D, M j'); ?>
         </div>
-    </header>
+    </div>
 
-    <section class="overview">
+    <!-- Quick Stats Section -->
+    <section class="overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 2.5rem;">
         
-        <div class="card">
-            <h2>Upcoming Appointments</h2>
+        <div class="card" style="background: white; border-radius: 16px; padding: 24px; box-shadow: var(--shadow-sm); border: 1px solid rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+            <i class="fas fa-calendar-check" style="position: absolute; right: -10px; bottom: -10px; font-size: 80px; color: var(--brand); opacity: 0.05;"></i>
+            <h2 style="font-size: 18px; color: #555; margin-bottom: 12px; font-weight: 600;"><i class="fas fa-clock" style="color: var(--brand); margin-right: 10px;"></i> Upcoming</h2>
             <?php
             if (isset($user_id)) {
                 $appointment_query = "SELECT COUNT(*) as total FROM appointments WHERE id = '$user_id' AND a_status = 'Accepted'";
                 $appointment_result = mysqli_query($con, $appointment_query);
                 $appointment_row = mysqli_fetch_assoc($appointment_result);
-
                 $total_appointments = $appointment_row['total'];
-                echo '<p>You have ' . intval($total_appointments) . ' upcoming appointments.</p>';
-            } else {
-                echo '<p>Please log in to see your appointments.</p>';
+                echo '<p style="font-size: 24px; color: var(--bg1); font-weight: 700; margin: 0;">' . intval($total_appointments) . ' Appointments</p>';
+                echo '<p style="margin: 8px 0 0; color: #777; font-size: 14px;">Confirmed and pending visits.</p>';
             }
             ?>
         </div>
        
-        <div class="card">
-            <h2>Subscribed Memberships</h2>
+        <div class="card" style="background: white; border-radius: 16px; padding: 24px; box-shadow: var(--shadow-sm); border: 1px solid rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+            <i class="fas fa-crown" style="position: absolute; right: -10px; bottom: -10px; font-size: 80px; color: var(--brand); opacity: 0.05;"></i>
+            <h2 style="font-size: 18px; color: #555; margin-bottom: 12px; font-weight: 600;"><i class="fas fa-gem" style="color: var(--brand); margin-right: 10px;"></i> Membership</h2>
             <?php
             if (isset($user_id)) {
-                // Fetch the latest membership details
-                $membership_query = "SELECT membership_type, payment_date, status FROM membership_payments WHERE id = '$user_id' ORDER BY payment_date DESC LIMIT 1";
+                $membership_query = "SELECT membership_type, status FROM membership_payments WHERE id = '$user_id' AND status='Active' LIMIT 1";
                 $membership_result = mysqli_query($con, $membership_query);
                 $membership_row = mysqli_fetch_assoc($membership_result);
 
                 if ($membership_row) {
-                    $membership_type = $membership_row['membership_type'];
-                    $payment_date = strtotime($membership_row['payment_date']);
-                    $status = $membership_row['status'];
-                    
-                    // Define membership duration in days (for example, 30 days)
-                    $membership_duration = 30; // Adjust this based on your actual durations
-                    $end_date = $payment_date + ($membership_duration * 86400); // 86400 seconds in a day
-                    $remaining_days = max(0, ($end_date - time()) / 86400); // Calculate remaining days
-                    $formatted_end_date = date('F j, Y', $end_date);
-
-                    echo '<p>Type: ' . htmlspecialchars($membership_type) . '</p>';
-                    echo '<p>Days Remaining: ' . intval($remaining_days) . '</p>';
-                    echo '<p>Ends On: ' . htmlspecialchars($formatted_end_date) . '</p>';
+                    echo '<p style="font-size: 24px; color: var(--bg1); font-weight: 700; margin: 0;">' . htmlspecialchars($membership_row['membership_type']) . '</p>';
+                    echo '<p style="margin: 8px 0 0; color: #1e8e3e; font-size: 14px; font-weight: 600;"><i class="fas fa-check-circle"></i> Active Plan</p>';
                 } else {
-                    echo '<p>You do not have an active membership.</p>';
+                    echo '<p style="font-size: 24px; color: var(--bg1); font-weight: 700; margin: 0;">Free Tier</p>';
+                    echo '<p style="margin: 8px 0 0;"><a href="membership_user.php" class="premium-link">Upgrade Now <i class="fas fa-arrow-right" style="font-size: 11px;"></i></a></p>';
                 }
-            } else {
-                echo '<p>Please log in to see your membership details.</p>';
             }
             ?>
         </div>
 
-        <div class="card">
-            <h2>Recent Activity</h2>
-            <p>Last login: <?php echo isset($last_login) ? htmlspecialchars($last_login) : 'N/A'; ?></p>
+        <div class="card" style="background: white; border-radius: 16px; padding: 24px; box-shadow: var(--shadow-sm); border: 1px solid rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+            <i class="fas fa-user-clock" style="position: absolute; right: -10px; bottom: -10px; font-size: 80px; color: var(--brand); opacity: 0.05;"></i>
+            <h2 style="font-size: 18px; color: #555; margin-bottom: 12px; font-weight: 600;"><i class="fas fa-history" style="color: var(--brand); margin-right: 10px;"></i> Session</h2>
+            <p style="font-size: 24px; color: var(--bg1); font-weight: 700; margin: 0;"><?php echo htmlspecialchars($last_login); ?></p>
+            <p style="margin: 8px 0 0; color: #777; font-size: 14px;">Your last login date.</p>
         </div>
         
     </section>
-    <section class="quick-actions">
-        <a href="../appointment.php">Book Appointment</a>
-        <a href="../service.php">View Service</a>
+
+    <h3 style="font-size: 20px; color: var(--bg1); font-weight: 700; margin-bottom: 1.5rem;">Quick Actions</h3>
+    <section class="quick-actions" style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <a href="../appointment.php" class="app_more" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 28px; border-radius: 12px; text-decoration: none; min-width: 200px; font-weight: 600;">
+            <i class="fas fa-plus"></i> Book Appointment
+        </a>
+        <a href="../service.php" class="app_more" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 28px; border-radius: 12px; text-decoration: none; min-width: 200px; font-weight: 600; background: var(--bg1); color: var(--brand);">
+            <i class="fas fa-concierge-bell"></i> Our Services
+        </a>
+        <a href="../eshop.php" class="app_more" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 28px; border-radius: 12px; text-decoration: none; min-width: 200px; font-weight: 600; background: #666; color: white;">
+            <i class="fas fa-shopping-bag"></i> Shop Products
+        </a>
     </section>
 </main>
