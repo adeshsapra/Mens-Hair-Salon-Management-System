@@ -42,7 +42,7 @@ $payment_data = mysqli_query($con, $payment);
                             <th>Date</th>
                             <th>Time</th>
                             <th>Status</th>
-                            <th>Action</th>
+                            <th>Details</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -59,13 +59,14 @@ $payment_data = mysqli_query($con, $payment);
                                 <td><?php echo $pay_fetch_row["p_date"]; ?></td>
                                 <td><?php echo $pay_fetch_row["p_time"]; ?></td>
                                 <td><?php echo $pay_fetch_row["p_status"]; ?></td>
-                                <td class="appointment-btn">
-                                    <a href="accept_payment.php?pay_id=<?php echo $pay_fetch_row["pay_id"]; ?>&action=confirm" onclick="return confirm('Are you sure you want to confirm this payment?');">
-                                        <button class="a-update">Confirm</button>
-                                    </a>
-                                    <a href="accept_payment.php?pay_id=<?php echo $pay_fetch_row["pay_id"]; ?>&action=discard" onclick="return confirm('Are you sure you do not want to receive this payment?');">
-                                        <button class="a-delete">Discard</button>
-                                    </a>
+                                <td>
+                                    <?php 
+                                    if ($pay_fetch_row["p_method"] == 'Stripe' || $pay_fetch_row["p_method"] == 'stripe') {
+                                        echo '<span style="font-size: 11px; color: #666;">ID: ' . $pay_fetch_row["stripe_payment_intent_id"] . '</span>';
+                                    } else {
+                                        echo '-';
+                                    }
+                                    ?>
                                 </td>
                             </tr>
                         <?php

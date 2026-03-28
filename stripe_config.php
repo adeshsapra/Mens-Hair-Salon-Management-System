@@ -1,0 +1,4 @@
+<?php
+// Replace these with your actual Stripe Test Keys
+define('STRIPE_PUBLISHABLE_KEY', 'pk_test_51T8imlA7H6HALvmQf8faEZpyrlMcDT9RpqTxC0mKh6KnBInFa15Tp1sVQUGccaYmbXFY6VXCdBIx7clqis9X8hIQ00VY3YBuue');
+define('STRIPE_SECRET_KEY', 'sk_test_51T8imlA7H6HALvmQMkpNxxmbsuTzJMap2yUJJwoYu7sceyy5V4ym2yEwK6z3zhJnXBeEfO08Enjc30EHVhk2KGqD00dHWTDuQ7');

@@ -44,9 +44,9 @@ $membership_pay_fetch = mysqli_query($con, "
                     $id_counter=1;
                     while($pay_fetch_row = mysqli_fetch_assoc($product_pay_fetch)){
                         $status = $pay_fetch_row["p_status"];
-                        if ($status == 'Pending') {
+                        if (strtolower($status) == 'pending') {
                             $color = '#b06000'; $bg = '#fef7e0'; $icon = 'fa-hourglass-half';
-                        } elseif ($status == 'Received' || $status == 'Success') {
+                        } elseif (strtolower($status) == 'received' || strtolower($status) == 'success' || strtolower($status) == 'paid') {
                             $color = '#1e8e3e'; $bg = '#e6f4ea'; $icon = 'fa-check-circle';
                         } else {
                             $color = '#d93025'; $bg = '#fce8e6'; $icon = 'fa-times-circle';

@@ -29,8 +29,11 @@ if (isset($_GET['id'])) {
 
         if (mysqli_query($con, $insert_wallet_query)) {
             // Mark the order as canceled
-            $cancel_order_query = "UPDATE product_sales SET s_status = 'Cancelled' WHERE s_id = '$order_id' AND id = '$user_id'";
+            $currentDate = date('Y-m-d');
+            $currentTime = date('H:i:s');
+            $cancel_order_query = "UPDATE product_sales SET s_status = 'cancelled' WHERE s_id = '$order_id' AND id = '$user_id'";
             if(mysqli_query($con, $cancel_order_query)) {
+                mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ('$order_id', 'cancelled', '$currentDate', '$currentTime')");
                 header("Location: order.php?message=Order cancelled successfully. Refunded to wallet.");
                 exit;
             } else {
