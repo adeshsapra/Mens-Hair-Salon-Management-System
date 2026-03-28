@@ -162,6 +162,12 @@ if ($product_query) {
         <a href="../eshop.php" class="app_more" style="margin-top: 0;"><i class="fas fa-shopping-basket"></i> Continue Shopping</a>
     </div>
 
+    <?php if (isset($_GET['message'])): ?>
+        <div style="background: #e6f4ea; color: #1e8e3e; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+            <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($_GET['message']); ?>
+        </div>
+    <?php endif; ?>
+
     <?php if (empty($orderGroups)): ?>
         <div style="padding: 60px; text-align: center; background: white; border-radius: 14px; border: 2px dashed rgba(203,185,15,0.3); margin-top: 20px;">
             <i class="fas fa-box-open" style="font-size: 50px; color: var(--brand); margin-bottom: 20px;"></i>
@@ -184,6 +190,12 @@ if ($product_query) {
 
                 <div class="order-items-grid">
                     <?php foreach ($orders as $sale_row): ?>
+                        <?php
+                            $lookupKey = strtolower(trim($sale_row['s_name'])) . '|' . strtolower(trim($sale_row['s_size']));
+                            $productUrl = isset($productLookup[$lookupKey]) ? "../product_display.php?id=" . $productLookup[$lookupKey] : '';
+                            $current_status = strtolower($sale_row['s_status']);
+                            $can_cancel = in_array($current_status, ['pending', 'confirmed', 'processing'], true);
+                        ?>
                         <div class="order-card-modern">
                             <div class="card-top">
                                 <div class="order-img-container">
@@ -192,8 +204,23 @@ if ($product_query) {
 
                                 <div class="order-info-container">
                                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                                        <h2 style="font-size: 18px; color: var(--bg1); margin: 0;"><?php echo htmlspecialchars($sale_row['s_name']); ?></h2>
-                                        <span style="font-weight: 700; color: var(--brand); font-size: 18px;">₹<?php echo number_format((float) $sale_row['s_total'], 2); ?></span>
+                                        <div>
+                                            <?php if ($productUrl): ?>
+                                                <h2 style="font-size: 18px; margin: 0;">
+                                                    <a href="<?php echo htmlspecialchars($productUrl); ?>" class="order-product-link"><?php echo htmlspecialchars($sale_row['s_name']); ?></a>
+                                                </h2>
+                                            <?php else: ?>
+                                                <h2 style="font-size: 18px; color: var(--bg1); margin: 0;"><?php echo htmlspecialchars($sale_row['s_name']); ?></h2>
+                                            <?php endif; ?>
+                                            <?php
+                                                $originalTotal = (float) $sale_row['s_price'] * (int) $sale_row['s_quantity'];
+                                                $finalTotal = (float) $sale_row['s_total'];
+                                            ?>
+                                            <?php if ($originalTotal > $finalTotal): ?>
+                                                <div style="font-size: 12px; color: #777; text-decoration: line-through;">₹<?php echo number_format($originalTotal, 2); ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <span style="font-weight: 700; color: var(--brand); font-size: 18px;">₹<?php echo number_format($finalTotal, 2); ?></span>
                                     </div>
                                     
                                     <div style="color: #666; font-size: 14px; margin-bottom: 15px;">
@@ -205,8 +232,6 @@ if ($product_query) {
                                     <div class="order-tracking-container">
                                         <?php 
                                         $steps = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
-                                        $current_status = strtolower($sale_row['s_status']);
-                                        $found_current = false;
                                         ?>
                                         <div class="tracking-steps">
                                             <?php foreach ($steps as $index => $step): ?>
@@ -235,15 +260,30 @@ if ($product_query) {
 
                             <div class="order-actions-bar">
                                 <div>
-                                    <span class="status-badge <?php echo $current_status === 'delivered' ? 'success' : 'progress'; ?>" style="font-size: 12px; padding: 6px 12px; border-radius: 20px;">
-                                        <i class="fas <?php echo $current_status === 'delivered' ? 'fa-check-circle' : 'fa-info-circle'; ?>"></i> Status: <?php echo ucfirst($sale_row['s_status']); ?>
+                                    <?php
+                                        if ($current_status === 'delivered') {
+                                            $statusBg = '#e6f4ea';
+                                            $statusColor = '#1e8e3e';
+                                            $statusIcon = 'fa-check-circle';
+                                        } elseif ($current_status === 'cancelled') {
+                                            $statusBg = '#fce8e6';
+                                            $statusColor = '#d93025';
+                                            $statusIcon = 'fa-times-circle';
+                                        } else {
+                                            $statusBg = '#fef9c3';
+                                            $statusColor = '#854d0e';
+                                            $statusIcon = 'fa-info-circle';
+                                        }
+                                    ?>
+                                    <span style="background: <?php echo $statusBg; ?>; color: <?php echo $statusColor; ?>; font-size: 12px; padding: 6px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                                        <i class="fas <?php echo $statusIcon; ?>"></i> Status: <?php echo ucfirst($sale_row['s_status']); ?>
                                     </span>
                                 </div>
                                 <div style="display: flex; gap: 10px;">
                                     <a href="invoice.php?time=<?php echo urlencode($sale_row['s_time']); ?>" class="order-action-btn order-action-primary" style="padding: 8px 15px; font-size: 13px;">
                                         <i class="fas fa-file-invoice"></i> Download Invoice
                                     </a>
-                                    <?php if ($current_status === 'pending') { ?>
+                                    <?php if ($can_cancel) { ?>
                                         <form action="cancel_order.php" method="get" style="margin: 0;">
                                             <input type="hidden" name="id" value="<?php echo (int) $sale_row['s_id']; ?>">
                                             <button type="submit" class="order-action-btn order-action-danger" style="padding: 8px 15px; font-size: 13px;" onclick="return confirm('Are you sure you want to cancel this order?')">

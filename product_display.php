@@ -55,6 +55,9 @@
             $query = "SELECT * FROM products WHERE p_id = $id";
             $all_product = $con->query($query);
             $product = mysqli_fetch_assoc($all_product);
+            $discount_percent = $product ? max(0, min(100, (float) ($product['p_discount'] ?? 0))) : 0;
+            $original_price = $product ? (float) $product['p_price'] : 0;
+            $discounted_price = $original_price - (($original_price * $discount_percent) / 100);
 
             // Check if user is logged in
             if (isset($_POST['add_to_cart'])) {
@@ -70,7 +73,7 @@
                     if ($available_quantity > 0) {
                         $c_name = $product['p_name'];
                         $c_img = $product['p_img'];
-                        $c_price = $product['p_price'];
+                        $c_price = $discounted_price;
                         $c_size = $product['p_size'];
                         $c_quantity = 1;
                         $c_total = $c_price * $c_quantity;
@@ -123,7 +126,16 @@
                 <img src="upload_product_photos/<?php echo $product["p_img"]; ?>" alt="Product Image" class="product-image">
                 <div class="product-details">
                     <p class="product-name"><?php echo $product["p_name"]; ?></p>
-                    <p class="product-price">₹ <?php echo $product["p_price"]; ?> <i> ( <?php echo $product["p_size"]; ?> )</i></p>
+                    <p class="product-price">
+                        <?php if ($discount_percent > 0): ?>
+                            <span class="product-price-original">₹ <?php echo number_format($original_price, 2); ?></span>
+                            <span class="product-price-final">₹ <?php echo number_format($discounted_price, 2); ?></span>
+                            <span class="product-discount-badge"><?php echo number_format($discount_percent, 0); ?>% OFF</span>
+                        <?php else: ?>
+                            <span class="product-price-final">₹ <?php echo number_format($original_price, 2); ?></span>
+                        <?php endif; ?>
+                        <i> ( <?php echo $product["p_size"]; ?> )</i>
+                    </p>
                     <p class="product-description"><?php echo $product["p_overview"]; ?></p>
                     <div class="product-features">
                         <h3>Key Features:</h3>

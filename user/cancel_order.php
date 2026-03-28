@@ -15,16 +15,31 @@ if (isset($_GET['id'])) {
     $order_id = mysqli_real_escape_string($con, $_GET['id']);
 
     // Fetch the order details
-    $order_query = "SELECT s_total, s_name, s_id FROM product_sales WHERE s_id = '$order_id' AND id = '$user_id'";
+    $order_query = "SELECT s_total, s_name, s_id, s_status FROM product_sales WHERE s_id = '$order_id' AND id = '$user_id'";
     $order_result = mysqli_query($con, $order_query);
 
     if ($order_result && mysqli_num_rows($order_result) > 0) {
         $order = mysqli_fetch_assoc($order_result);
+        $current_status = strtolower($order['s_status']);
+        $can_cancel = in_array($current_status, ['pending', 'confirmed', 'processing'], true);
+
+        if (!$can_cancel) {
+            header("Location: order.php?message=This order cannot be cancelled now.");
+            exit;
+        }
+
         $amount = $order['s_total'];
         $sale_id = $order['s_id'];
 
-        // Insert into wallet with sale ID
-        $insert_wallet_query = "INSERT INTO wallet_transactions (user_id, amount, product_id) 
+        // Prevent duplicate refund entries for the same order
+        $existing_refund = mysqli_query($con, "SELECT id FROM wallet_transactions WHERE user_id = '$user_id' AND sale_id = '$sale_id' LIMIT 1");
+        if ($existing_refund && mysqli_num_rows($existing_refund) > 0) {
+            header("Location: order.php?message=Order already cancelled and refunded.");
+            exit;
+        }
+
+        // Insert refund into wallet with sale ID reference
+        $insert_wallet_query = "INSERT INTO wallet_transactions (user_id, amount, sale_id) 
                                  VALUES ('$user_id', '$amount', '$sale_id')";
 
         if (mysqli_query($con, $insert_wallet_query)) {

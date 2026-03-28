@@ -25,10 +25,16 @@ $currentTime = date('H:i:s');
 $pay_grand_total = 0;
 $quantityUpdateQueries = [];
 
+function getDiscountedPrice($price, $discountPercent) {
+    $price = (float) $price;
+    $discountPercent = max(0, min(100, (float) $discountPercent));
+    return round($price - (($price * $discountPercent) / 100), 2);
+}
+
 if ($product_id) {
     $pay_product = mysqli_query($con, "SELECT * FROM products WHERE p_id = '$product_id'");
     $fetch_pay_product = mysqli_fetch_assoc($pay_product);
-    $pay_grand_total = $fetch_pay_product ? $fetch_pay_product['p_price'] : 0;
+    $pay_grand_total = $fetch_pay_product ? getDiscountedPrice($fetch_pay_product['p_price'], $fetch_pay_product['p_discount'] ?? 0) : 0;
 } else {
     $pay_product = mysqli_query($con, "SELECT SUM(c_total) AS grand_total FROM product_cart WHERE id = '$user_id'");
     $total_row = mysqli_fetch_assoc($pay_product);
@@ -37,9 +43,10 @@ if ($product_id) {
 
 if ($product_id) {
     if ($fetch_pay_product) {
+        $discounted_unit_price = getDiscountedPrice($fetch_pay_product['p_price'], $fetch_pay_product['p_discount'] ?? 0);
         $insertSale = mysqli_query($con, "
             INSERT INTO product_sales(id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time)
-            VALUES ('$user_id', '{$fetch_pay_product['p_img']}', '{$fetch_pay_product['p_name']}', '{$fetch_pay_product['p_price']}', '{$fetch_pay_product['p_size']}', 1, '{$fetch_pay_product['p_price']}', '{$pay_grand_total}', '$currentDate', 'confirmed', '$currentTime')");
+            VALUES ('$user_id', '{$fetch_pay_product['p_img']}', '{$fetch_pay_product['p_name']}', '{$fetch_pay_product['p_price']}', '{$fetch_pay_product['p_size']}', 1, '{$discounted_unit_price}', '{$pay_grand_total}', '$currentDate', 'confirmed', '$currentTime')");
 
         if ($insertSale) {
             $s_id = mysqli_insert_id($con);

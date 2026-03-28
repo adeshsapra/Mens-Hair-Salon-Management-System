@@ -3,6 +3,12 @@ include 'connect.php';
 session_start();
 $user_id = $_SESSION['user_id'];
 
+function getDiscountedPrice($price, $discountPercent) {
+    $price = (float) $price;
+    $discountPercent = max(0, min(100, (float) $discountPercent));
+    return round($price - (($price * $discountPercent) / 100), 2);
+}
+
 $product_id = isset($_GET['id']) ? intval($_GET['id']) : null;
 $pay_grand_total = 0;
 $fetch_pay_product = null;
@@ -14,7 +20,7 @@ if ($product_id) {
         FROM products
         WHERE p_id = '$product_id'");
     $fetch_pay_product = mysqli_fetch_assoc($pay_product);
-    $pay_grand_total = $fetch_pay_product ? $fetch_pay_product['p_price'] : 0;
+    $pay_grand_total = $fetch_pay_product ? getDiscountedPrice($fetch_pay_product['p_price'], $fetch_pay_product['p_discount'] ?? 0) : 0;
 } else {
     $pay_product = mysqli_query($con, "
         SELECT SUM(c_total) AS grand_total
@@ -39,9 +45,10 @@ if (isset($_POST['cod-btn'])) {
         if (!$fetch_pay_product) {
             echo "<script>alert('Product not found.');</script>";
         } else {
+            $discounted_unit_price = getDiscountedPrice($fetch_pay_product['p_price'], $fetch_pay_product['p_discount'] ?? 0);
             $insertSale = mysqli_query($con, "
                 INSERT INTO product_sales(id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time)
-                VALUES ('$user_id', '{$fetch_pay_product['p_img']}', '{$fetch_pay_product['p_name']}', '{$fetch_pay_product['p_price']}', '{$fetch_pay_product['p_size']}', 1, '{$fetch_pay_product['p_price']}', '{$pay_grand_total}', '$currentDate', 'pending', '$currentTime')");
+                VALUES ('$user_id', '{$fetch_pay_product['p_img']}', '{$fetch_pay_product['p_name']}', '{$fetch_pay_product['p_price']}', '{$fetch_pay_product['p_size']}', 1, '{$discounted_unit_price}', '{$pay_grand_total}', '$currentDate', 'pending', '$currentTime')");
 
             if ($insertSale) {
                 $s_id = mysqli_insert_id($con);
@@ -216,11 +223,22 @@ if (isset($_POST['cod-btn'])) {
                             <div class="payment-product-item">
                                 <img src="../upload_product_photos/<?php echo $fetch_pay_product['p_img']; ?>" alt="Product Image">
                                 <div class="payment-product-info">
+                                    <?php
+                                        $single_original = (float) $fetch_pay_product['p_price'];
+                                        $single_discount = isset($fetch_pay_product['p_discount']) ? (float) $fetch_pay_product['p_discount'] : 0;
+                                        $single_final = getDiscountedPrice($single_original, $single_discount);
+                                    ?>
                                     <h3><?php echo $fetch_pay_product['p_name']; ?></h3>
-                                    <p>Price: ₹ <?php echo number_format((float) $fetch_pay_product['p_price']); ?></p>
+                                    <?php if ($single_discount > 0): ?>
+                                        <p>Original Price: <span class="price-original">₹ <?php echo number_format($single_original, 2); ?></span></p>
+                                        <p>Discount: <?php echo number_format($single_discount, 0); ?>% (-₹ <?php echo number_format($single_original - $single_final, 2); ?>)</p>
+                                        <p>Final Price: ₹ <?php echo number_format($single_final, 2); ?></p>
+                                    <?php else: ?>
+                                        <p>Price: ₹ <?php echo number_format($single_original, 2); ?></p>
+                                    <?php endif; ?>
                                     <p>Size: <?php echo $fetch_pay_product['p_size']; ?></p>
                                     <p>Quantity: 1</p>
-                                    <p>Total: ₹ <?php echo number_format((float) $fetch_pay_product['p_price']); ?></p>
+                                    <p>Total: ₹ <?php echo number_format($single_final, 2); ?></p>
                                 </div>
                             </div>
                             <?php
@@ -240,8 +258,19 @@ if (isset($_POST['cod-btn'])) {
                                 <div class="payment-product-item">
                                     <img src="../upload_product_photos/<?php echo $fetch_pay_product['p_img']; ?>" alt="Product Image">
                                     <div class="payment-product-info">
+                                        <?php
+                                            $cart_original = (float) $fetch_pay_product['p_price'];
+                                            $cart_discount = isset($fetch_pay_product['p_discount']) ? (float) $fetch_pay_product['p_discount'] : 0;
+                                            $cart_final = (float) $fetch_pay_product['c_price'];
+                                        ?>
                                         <h3><?php echo $fetch_pay_product['p_name']; ?></h3>
-                                        <p>Price: ₹ <?php echo number_format((float) $fetch_pay_product['p_price']); ?></p>
+                                        <?php if ($cart_discount > 0): ?>
+                                            <p>Original Price: <span class="price-original">₹ <?php echo number_format($cart_original, 2); ?></span></p>
+                                            <p>Discount: <?php echo number_format($cart_discount, 0); ?>% (-₹ <?php echo number_format($cart_original - $cart_final, 2); ?>)</p>
+                                            <p>Final Price: ₹ <?php echo number_format($cart_final, 2); ?></p>
+                                        <?php else: ?>
+                                            <p>Price: ₹ <?php echo number_format($cart_original, 2); ?></p>
+                                        <?php endif; ?>
                                         <p>Size: <?php echo $fetch_pay_product['p_size']; ?></p>
                                         <p>Quantity: <?php echo $fetch_pay_product['c_quantity']; ?></p>
                                         <p>Total: ₹ <?php echo number_format((float) $fetch_pay_product['c_total']); ?></p>

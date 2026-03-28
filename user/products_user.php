@@ -115,7 +115,9 @@ if (mysqli_num_rows($select_cart) === 0) {
                     $grand_total = 0;
                     if (mysqli_num_rows($select_cart) > 0) {
                         while ($fetch_product = mysqli_fetch_assoc($select_cart)) {
-                            $price = (float)$fetch_product['p_price'];
+                            $original_price = (float)$fetch_product['p_price'];
+                            $discount_percent = isset($fetch_product['p_discount']) ? max(0, min(100, (float) $fetch_product['p_discount'])) : 0;
+                            $price = (float)$fetch_product['c_price'];
                             $quantity = (int)$fetch_product['c_quantity'];
                             $sub_total = $price * $quantity;
 
@@ -127,7 +129,15 @@ if (mysqli_num_rows($select_cart) === 0) {
                         <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;"><?php echo htmlspecialchars($fetch_product['p_name']); ?></div>
                         <div style="color: #666; font-size: 13px;"><i class="fas fa-tag"></i> Size: <?php echo htmlspecialchars($fetch_product['p_size']); ?></div>
                     </td> 
-                    <td style="padding: 16px; font-weight: 600; color: #555;">₹<?php echo number_format($price, 2); ?></td>
+                    <td style="padding: 16px; font-weight: 600; color: #555;">
+                        <?php if ($discount_percent > 0): ?>
+                            <span style="text-decoration: line-through; color: #888; margin-right: 6px;">₹<?php echo number_format($original_price, 2); ?></span>
+                            <span style="color: var(--brand);">₹<?php echo number_format($price, 2); ?></span>
+                            <small style="display:block; color:#1e8e3e;"><?php echo number_format($discount_percent, 0); ?>% OFF</small>
+                        <?php else: ?>
+                            ₹<?php echo number_format($price, 2); ?>
+                        <?php endif; ?>
+                    </td>
                     <td style="padding: 16px;">
                         <form action="" method="post" style="display: flex; align-items: center; gap: 8px;">
                             <input type="hidden" name="update_quantity_id" value="<?php echo htmlspecialchars($fetch_product['c_id']); ?>">

@@ -13,47 +13,52 @@ if (isset($_POST['update'])) {
     $product_id = intval($_POST['product_id']);
     $update_parts = [];
 
-    if (!empty($_POST['product_name'])) {
+    if (isset($_POST['product_name']) && $_POST['product_name'] !== '') {
         $p_name = $_POST['product_name'];
         $update_parts[] = "p_name='$p_name'";
     }
 
-    if (!empty($_POST['product_desc'])) {
+    if (isset($_POST['product_desc']) && $_POST['product_desc'] !== '') {
         $p_desc = $_POST['product_desc'];
         $update_parts[] = "p_desc='$p_desc'";
     }
     
-    if (!empty($_POST['product_price'])) {
+    if (isset($_POST['product_price']) && $_POST['product_price'] !== '') {
         $p_price = $_POST['product_price'];
         $update_parts[] = "p_price='$p_price'";
     }
+    
+    if (isset($_POST['product_discount']) && $_POST['product_discount'] !== '') {
+        $p_discount = max(0, min(100, (float) $_POST['product_discount']));
+        $update_parts[] = "p_discount='$p_discount'";
+    }
 
-    if (!empty($_POST['product_size'])) {
+    if (isset($_POST['product_size']) && $_POST['product_size'] !== '') {
         $p_size = $_POST['product_size'];
         $update_parts[] = "p_size='$p_size'";
     }
 
-    if (!empty($_POST['product_overview'])) {
+    if (isset($_POST['product_overview']) && $_POST['product_overview'] !== '') {
         $p_overview = $_POST['product_overview'];
         $update_parts[] = "p_overview='$p_overview'";
     }
 
-    if (!empty($_POST['product_f1'])) {
+    if (isset($_POST['product_f1']) && $_POST['product_f1'] !== '') {
         $p_f1 =$_POST['product_f1'];
         $update_parts[] = "p_f1='$p_f1'";
     }
 
-    if (!empty($_POST['product_f2'])) {
+    if (isset($_POST['product_f2']) && $_POST['product_f2'] !== '') {
         $p_f2 =$_POST['product_f2'];
         $update_parts[] = "p_f2='$p_f2'";
     }
 
-    if (!empty($_POST['product_ingred'])) {
+    if (isset($_POST['product_ingred']) && $_POST['product_ingred'] !== '') {
         $p_ingred = $_POST['product_ingred'];
         $update_parts[] = "p_ingred='$p_ingred'";
     }
 
-    if (!empty($_POST['product_quantity'])) {
+    if (isset($_POST['product_quantity']) && $_POST['product_quantity'] !== '') {
         $p_quantity = $_POST['product_quantity'];
         $update_parts[] = "p_quantity='$p_quantity'";
     }
@@ -66,7 +71,7 @@ if (isset($_POST['update'])) {
         $p_image_folder='../upload_product_photos/'.$p_image;
         
         if (move_uploaded_file($p_image_tmp,$p_image_folder)) {
-            $update_parts[] = "p_img='$p_image_folder'";
+            $update_parts[] = "p_img='$p_image'";
         }
     }
 
@@ -80,11 +85,7 @@ if (isset($_POST['update'])) {
         } else {
             echo "Error updating product: " . $con->error;
         }
-    } else {
-        echo "No fields to update.";
     }
-} else {
-    echo "No data submitted.";
 }
 
 $con->close();
@@ -134,6 +135,12 @@ $con->close();
                 <label for="product-price">Price:</label>
                 <input type="text" id="product-price" name="product_price"  value="<?php echo $row["p_price"];?>">
 
+                <label for="product-discount">Discount (%):</label>
+                <input type="number" id="product-discount" name="product_discount" min="0" max="100" step="0.01" value="<?php echo isset($row["p_discount"]) ? $row["p_discount"] : 0; ?>">
+
+                <label for="product-final-price">Final Price After Discount:</label>
+                <input type="text" id="product-final-price" readonly>
+
                 <label for="product-size">Size:</label>
                 <input type="text" id="product-size" name="product_size"  value="<?php echo $row["p_size"];?>">
 
@@ -166,6 +173,14 @@ $con->close();
     </div>
 
     <script>
+    function updateFinalPricePreview() {
+        const basePrice = parseFloat(document.getElementById('product-price').value || 0);
+        const discount = parseFloat(document.getElementById('product-discount').value || 0);
+        const clampedDiscount = Math.max(0, Math.min(100, discount));
+        const finalPrice = basePrice - ((basePrice * clampedDiscount) / 100);
+        document.getElementById('product-final-price').value = finalPrice.toFixed(2);
+    }
+
     function previewImage(event) {
         const input = event.target;
         const preview = document.getElementById('image-preview');
@@ -187,6 +202,10 @@ $con->close();
             container.style.display = 'block';
         }
     }
+
+    document.getElementById('product-price').addEventListener('input', updateFinalPricePreview);
+    document.getElementById('product-discount').addEventListener('input', updateFinalPricePreview);
+    updateFinalPricePreview();
     </script>
 </body>
 </html>

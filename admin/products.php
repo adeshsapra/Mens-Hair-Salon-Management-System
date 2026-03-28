@@ -6,6 +6,7 @@ include('connect.php');
 
 $query = "SELECT * FROM products";
 $all_product = $con->query($query);
+$has_products = mysqli_num_rows($all_product) > 0;
 ?>
 
 <div class="main-content">
@@ -23,15 +24,28 @@ $all_product = $con->query($query);
         <!-- Product List -->
         <div class="product-list">
             <h2>Existing Products</h2>
-            <?php 
-                while($row = mysqli_fetch_assoc($all_product)){
-            ?>
+            <?php if ($has_products): ?>
+            <?php while($row = mysqli_fetch_assoc($all_product)){ ?>
+                    <?php
+                        $original_price = (float) $row["p_price"];
+                        $discount = isset($row["p_discount"]) ? (float) $row["p_discount"] : 0;
+                        $discounted_price = $original_price - (($original_price * $discount) / 100);
+                    ?>
                     <div class="product-item">
                         <img src="../upload_product_photos/<?php echo $row["p_img"]; ?>" alt="Product Image">
                         <div class="product-info">
                             <h2><?php echo $row["p_name"]; ?></h2>
                             <p><?php echo $row["p_desc"]; ?></p>
-                            <p>₹ <?php echo $row["p_price"]; ?> <i> ( <?php echo $row["p_size"]; ?> )</i></p>
+                            <p>
+                                <?php if ($discount > 0): ?>
+                                    <span style="text-decoration: line-through; color: #777;">₹ <?php echo number_format($original_price, 2); ?></span>
+                                    <span style="color: var(--brand); font-weight: 700;">₹ <?php echo number_format($discounted_price, 2); ?></span>
+                                    <small style="margin-left: 6px; color: #1e8e3e;"><?php echo number_format($discount, 0); ?>% OFF</small>
+                                <?php else: ?>
+                                    ₹ <?php echo number_format($original_price, 2); ?>
+                                <?php endif; ?>
+                                <i> ( <?php echo $row["p_size"]; ?> )</i>
+                            </p>
                             <p>Quantity: <?php echo $row["p_quantity"]; ?></p>
                         </div>
                         <div class="product-actions">
@@ -43,10 +57,10 @@ $all_product = $con->query($query);
                             </a>
                         </div>
                     </div>
-                    <?php
-                }
-                    ?>
+            <?php } ?>
+            <?php else: ?>
                 <p>No products found.</p>
+            <?php endif; ?>
         </div>
     </div>
 </div>

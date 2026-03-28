@@ -181,12 +181,24 @@ $all_product= $con->query($query);
             <!-- display product -->
             <?php
                 while($row = mysqli_fetch_assoc($all_product)){
+                    $original_price = (float) $row["p_price"];
+                    $discount = isset($row["p_discount"]) ? (float) $row["p_discount"] : 0;
+                    $discounted_price = $original_price - (($original_price * $discount) / 100);
             ?>
              <div class="product-card">
                 <img src="upload_product_photos/<?php echo $row["p_img"]; ?>" alt="Product 4">
                 <h3><?php echo $row["p_name"]; ?></h3>
                 <p class="content"><?php echo $row["p_desc"]; ?></p>
-                <p>₹ <?php echo $row["p_price"]; ?> <i> ( <?php echo $row["p_size"]; ?> )</i></p>
+                <p class="eshop-price-wrap">
+                    <?php if ($discount > 0): ?>
+                        <span class="eshop-price-original">₹ <?php echo number_format($original_price, 2); ?></span>
+                        <span class="eshop-price-final">₹ <?php echo number_format($discounted_price, 2); ?></span>
+                        <span class="eshop-discount-badge"><?php echo number_format($discount, 0); ?>% OFF</span>
+                    <?php else: ?>
+                        <span class="eshop-price-final">₹ <?php echo number_format($original_price, 2); ?></span>
+                    <?php endif; ?>
+                    <i> ( <?php echo $row["p_size"]; ?> )</i>
+                </p>
                 <a href="product_display.php?id=<?php echo $row["p_id"]; ?>">
                         <button>View Details</button>
                 </a>

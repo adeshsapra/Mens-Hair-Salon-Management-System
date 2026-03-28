@@ -8,6 +8,7 @@ if(isset($_POST['add-product'])){
     $p_name = $_POST['product_name'];
     $p_desc = $_POST['product_desc'];
     $p_price = $_POST['product_price'];
+    $p_discount = isset($_POST['product_discount']) ? max(0, min(100, (float) $_POST['product_discount'])) : 0;
     $p_size = $_POST['product_size'];
     $p_overview = $_POST['product_overview'];
     $p_f1 = $_POST['product_f1'];
@@ -29,8 +30,8 @@ if(isset($_POST['add-product'])){
                     $message= "Sorry, your file is too large..!!";
         }
         else{
-            $insert=mysqli_query($con,"insert into products(p_name,p_desc,p_price,p_size,p_overview,p_f1,p_f2,p_ingred,p_img,p_quantity)
-            values('$p_name','$p_desc','$p_price','$p_size','$p_overview','$p_f1','$p_f2','$p_ingred','$p_image','$p_quantity')") or die('Query Failed');
+            $insert=mysqli_query($con,"insert into products(p_name,p_desc,p_price,p_discount,p_size,p_overview,p_f1,p_f2,p_ingred,p_img,p_quantity)
+            values('$p_name','$p_desc','$p_price','$p_discount','$p_size','$p_overview','$p_f1','$p_f2','$p_ingred','$p_image','$p_quantity')") or die('Query Failed');
     
             if($insert)
             {
@@ -79,6 +80,12 @@ if(isset($_POST['add-product'])){
                 <label for="product-price">Price:</label>
                 <input type="number" id="product-price" name="product_price">
 
+                <label for="product-discount">Discount (%):</label>
+                <input type="number" id="product-discount" name="product_discount" min="0" max="100" step="0.01" value="0">
+
+                <label for="product-final-price">Final Price After Discount:</label>
+                <input type="text" id="product-final-price" readonly>
+
                 <label for="product-size">Size:</label>
                 <input type="text" id="product-size" name="product_size">
 
@@ -110,4 +117,18 @@ if(isset($_POST['add-product'])){
         </div>
 </div>
 </div>
+
+<script>
+    function updateFinalPricePreview() {
+        const basePrice = parseFloat(document.getElementById('product-price').value || 0);
+        const discount = parseFloat(document.getElementById('product-discount').value || 0);
+        const clampedDiscount = Math.max(0, Math.min(100, discount));
+        const finalPrice = basePrice - ((basePrice * clampedDiscount) / 100);
+        document.getElementById('product-final-price').value = finalPrice.toFixed(2);
+    }
+
+    document.getElementById('product-price').addEventListener('input', updateFinalPricePreview);
+    document.getElementById('product-discount').addEventListener('input', updateFinalPricePreview);
+    updateFinalPricePreview();
+</script>
 
