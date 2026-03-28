@@ -98,7 +98,7 @@ if (mysqli_num_rows($select_cart) === 0) {
             <a href="../eshop.php" class="app_more" style="margin-top: 0;"><i class="fas fa-store"></i> Keep Shopping</a>
         </div>
         
-        <div class="table-container" style="background: white; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid rgba(0,0,0,0.05); overflow-x: auto; margin-bottom: 2rem;">
+        <div class="table-container desktop-cart-view" style="background: white; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid rgba(0,0,0,0.05); overflow-x: auto; margin-bottom: 2rem;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr style="background-color: var(--bg1); color: var(--bg2);">
@@ -114,6 +114,7 @@ if (mysqli_num_rows($select_cart) === 0) {
                 <?php 
                     $grand_total = 0;
                     if (mysqli_num_rows($select_cart) > 0) {
+                        mysqli_data_seek($select_cart, 0); 
                         while ($fetch_product = mysqli_fetch_assoc($select_cart)) {
                             $original_price = (float)$fetch_product['p_price'];
                             $discount_percent = isset($fetch_product['p_discount']) ? max(0, min(100, (float) $fetch_product['p_discount'])) : 0;
@@ -173,6 +174,80 @@ if (mysqli_num_rows($select_cart) === 0) {
                 </tbody>
             </table>
         </div>
+
+        <div class="mobile-cart-view">
+            <?php 
+                if (mysqli_num_rows($select_cart) > 0) {
+                    mysqli_data_seek($select_cart, 0);
+                    while ($fetch_product = mysqli_fetch_assoc($select_cart)) {
+                        $original_price = (float)$fetch_product['p_price'];
+                        $discount_percent = isset($fetch_product['p_discount']) ? max(0, min(100, (float) $fetch_product['p_discount'])) : 0;
+                        $price = (float)$fetch_product['c_price'];
+                        $quantity = (int)$fetch_product['c_quantity'];
+                        $sub_total = $price * $quantity;
+                        $error_message = isset($errors[$fetch_product['c_id']]) ? $errors[$fetch_product['c_id']] : '';
+            ?>
+                <div class="mobile-cart-item">
+                    <div class="m-cart-upper">
+                        <div class="m-cart-img">
+                            <img src="../upload_product_photos/<?php echo $fetch_product['p_img']; ?>" alt="">
+                        </div>
+                        <div class="m-cart-details">
+                            <div class="m-cart-name"><?php echo htmlspecialchars($fetch_product['p_name']); ?></div>
+                            <div class="m-cart-size">Size: <?php echo htmlspecialchars($fetch_product['p_size']); ?></div>
+                            <div class="m-cart-price-row">
+                                <span class="m-cart-price">₹<?php echo number_format($price, 2); ?></span>
+                                <?php if ($discount_percent > 0): ?>
+                                    <span class="m-cart-old-price">₹<?php echo number_format($original_price, 2); ?></span>
+                                    <span class="m-cart-discount"><?php echo number_format($discount_percent, 0); ?>% OFF</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="m-cart-lower">
+                        <form action="" method="post" class="m-cart-qty-form">
+                            <input type="hidden" name="update_quantity_id" value="<?php echo htmlspecialchars($fetch_product['c_id']); ?>">
+                            <input type="number" name="update_quantity" min="1" value="<?php echo htmlspecialchars($fetch_product['c_quantity']); ?>" class="m-cart-qty-input">
+                            <button type="submit" name="update_update_btn" class="m-cart-update-btn"><i class="fas fa-sync-alt"></i></button>
+                        </form>
+                        <a href="products_user.php?id=<?php echo htmlspecialchars($fetch_product['c_id']); ?>" onclick="return confirm('Remove item from cart?')" class="m-cart-remove-link">
+                            <i class="fas fa-trash-alt"></i> Remove
+                        </a>
+                    </div>
+                    <?php if ($error_message): ?>
+                        <div style="color: #d93025; font-size: 12px; font-weight: bold; margin-top: 10px; text-align: center;">
+                            <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error_message); ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php 
+                    }
+                }
+            ?>
+
+            <div class="m-cart-total-footer">
+                <div class="m-cart-footer-row">
+                    <span class="m-cart-footer-label">Subtotal</span>
+                    <span class="m-cart-footer-value">₹<?php echo number_format($grand_total, 2); ?></span>
+                </div>
+                <div class="m-cart-footer-row">
+                    <span class="m-cart-footer-label">Delivery</span>
+                    <span class="m-cart-footer-value" style="color: #388e3c;">FREE</span>
+                </div>
+                <div class="m-cart-footer-row grand-total">
+                    <span class="m-cart-footer-label" style="font-weight: 700; color: #212121;">Total Amount</span>
+                    <span class="m-cart-footer-value is-total">₹<?php echo number_format($grand_total, 2); ?></span>
+                </div>
+                
+                <form action="" method="get" style="margin-top: 15px;">
+                    <input type="hidden" name="delete_all" value="1">
+                    <button type="submit" class="m-empty-cart-btn">
+                        <i class="fas fa-times-circle"></i> Empty Shopping Cart
+                    </button>
+                </form>
+            </div>
+        </div>
+
 
         <div class="checkout-btn" style="text-align: right;">
             <a href="checkout.php" class="proceed-btn" style="display: inline-block; padding: 14px 32px; font-size: 18px; border-radius: 30px;"><i class="fas fa-lock"></i> Secure Checkout</a>

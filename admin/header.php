@@ -35,6 +35,19 @@ if ($admin_result) {
              margin: 0;
              padding: 0;
             }
+        .has-submenu {
+            justify-content: space-between;
+        }
+        .has-submenu .menu-label {
+            display: inline-flex;
+            align-items: center;
+        }
+        .submenu-caret {
+            margin-right: 0 !important;
+            margin-left: auto;
+            font-size: 12px;
+            transition: transform 0.2s ease;
+        }
         .submenu {
             display: none;
             /* background: #34495e; */
@@ -52,27 +65,37 @@ if ($admin_result) {
         .active .submenu {
             display: block;
         }
+        .active > .has-submenu .submenu-caret {
+            transform: rotate(180deg);
+        }
     </style>
     <script>
         function toggleSubmenu(event) {
-            // Prevent default action of anchor
             event.preventDefault();
             const parentLi = event.currentTarget.parentElement;
+            const isAlreadyOpen = parentLi.classList.contains('active');
 
-            // Close any open submenus
-            const allSubmenus = document.querySelectorAll('.submenu');
-            allSubmenus.forEach(submenu => {
-                if (submenu !== parentLi.querySelector('.submenu')) {
-                    submenu.style.display = 'none';
-                    submenu.parentElement.classList.remove('active');
+            document.querySelectorAll('.nav-links > li.active').forEach((menuItem) => {
+                if (menuItem !== parentLi) {
+                    menuItem.classList.remove('active');
                 }
             });
-            const submenu = parentLi.querySelector('.submenu');
-            if (submenu) {
-                submenu.style.display = submenu.style.display === 'block' ? 'none' : 'block';
-                parentLi.classList.toggle('active');
-            }
+
+            parentLi.classList.toggle('active', !isAlreadyOpen);
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentPage = window.location.pathname.split('/').pop();
+            document.querySelectorAll('.submenu a').forEach((link) => {
+                const href = link.getAttribute('href');
+                if (href === currentPage) {
+                    const parentLi = link.closest('.submenu')?.parentElement;
+                    if (parentLi) {
+                        parentLi.classList.add('active');
+                    }
+                }
+            });
+        });
     </script>
 </head>
 <body>
@@ -96,28 +119,34 @@ if ($admin_result) {
         <h2>Classycut Salon</h2>
     </div>
     <ul class="nav-links">
-        <li><a href="index.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-        <li><a href="customer.php"><i class="fas fa-user"></i> Clients</a></li>
-        <li><a href="appointments_manage.php"><i class="fas fa-calendar-alt"></i> Appointments</a></li>
+        <li><a href="index.php"><i class="fas fa-tachometer-alt"></i> Dashboard Overview</a></li>
+        <li><a href="customer.php"><i class="fas fa-user"></i> Client Directory</a></li>
+        <li><a href="appointments_manage.php"><i class="fas fa-calendar-alt"></i> Appointment Management</a></li>
         <li>
-            <a href="products.php" onclick="toggleSubmenu(event)"><i class="fas fa-box"></i> Products</a>
+            <a href="products.php" class="has-submenu" onclick="toggleSubmenu(event)">
+                <span class="menu-label"><i class="fas fa-box"></i> Product Operations</span>
+                <i class="fas fa-chevron-down submenu-caret"></i>
+            </a>
             <ul class="submenu">
-                <li><a href="products.php"><i class="fas fa-cogs"></i> Manage Products</a></li>
-                <li><a href="manage_orders.php"><i class="fas fa-receipt"></i> Manage Orders</a></li>
+                <li><a href="products.php"><i class="fas fa-cogs"></i> Product Catalog</a></li>
+                <li><a href="manage_orders.php"><i class="fas fa-receipt"></i> Order Management</a></li>
             </ul>
         </li>
         <li>
-            <a href="membership_manage.php" onclick="toggleSubmenu(event)"><i class="fas fa-box"></i> Membership</a>
+            <a href="membership_manage.php" class="has-submenu" onclick="toggleSubmenu(event)">
+                <span class="menu-label"><i class="fas fa-box"></i> Membership Programs</span>
+                <i class="fas fa-chevron-down submenu-caret"></i>
+            </a>
             <ul class="submenu">
-                <li><a href="membership_manage.php"><i class="fas fa-cogs"></i> Manage Membership</a></li>
-                <li><a href="membership_details.php"><i class="fas fa-user-tag"></i> Membership Details</a></li>
+                <li><a href="membership_manage.php"><i class="fas fa-cogs"></i> Plan Management</a></li>
+                <li><a href="membership_details.php"><i class="fas fa-user-tag"></i> Membership Transactions</a></li>
 
             </ul>
         </li>
-        <li><a href="service_manage.php"><i class="fas fa-cut"></i> Services</a></li>
-        <li><a href="payment_manage.php"><i class="fas fa-box"></i> Payment</a></li>
-        <li><a href="database_backup.php"><i class="fas fa-database"></i> Database Backup</a></li>
-        <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        <li><a href="service_manage.php"><i class="fas fa-cut"></i> Service Catalog</a></li>
+        <li><a href="payment_manage.php"><i class="fas fa-box"></i> Payment Management</a></li>
+        <li><a href="database_backup.php"><i class="fas fa-database"></i> Backup & Restore</a></li>
+        <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Sign Out</a></li>
     </ul>
 </div>
 
@@ -297,4 +326,50 @@ document.addEventListener('click', function(e) {
         }
     }
 }, true); // Important: capture phase to stop immediate propagation before inline handler
+    // --- 3-DOT DROPDOWN TOGGLE ---
+    function setActionDropdownState(dropdown, isOpen) {
+        if (!dropdown) return;
+        const menu = dropdown.querySelector('.action-dropdown-content');
+        const trigger = dropdown.querySelector('.action-dots');
+
+        dropdown.classList.toggle('show', isOpen);
+        if (menu) {
+            menu.style.display = isOpen ? 'block' : 'none';
+            menu.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        }
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+    }
+
+    function closeAllActionDropdowns(exceptDropdown = null) {
+        document.querySelectorAll('.action-dropdown').forEach(d => {
+            if (d !== exceptDropdown) {
+                setActionDropdownState(d, false);
+            }
+        });
+    }
+
+    function toggleActionDropdown(event, id) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const dropdown = event.currentTarget.closest('.action-dropdown');
+        if (!dropdown) return;
+
+        const willOpen = !dropdown.classList.contains('show');
+        closeAllActionDropdowns(dropdown);
+        setActionDropdownState(dropdown, willOpen);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        closeAllActionDropdowns();
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.action-dropdown')) {
+            closeAllActionDropdowns();
+        }
+    });
 </script>

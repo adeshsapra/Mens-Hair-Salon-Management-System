@@ -1,6 +1,7 @@
 <?php 
 include 'connect.php';
 include 'header.php';
+require_once 'page_header_helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add'])) {
     $name = $_POST['name'];
@@ -22,9 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add'])) {
 }
 ?>
 
+<?php
+renderAdminPageIntro(
+    'Admin Settings / Add Admin',
+    'Create Administrator Account',
+    'Register a new administrator profile with secure credentials and controlled panel access.'
+);
+?>
+
 <div class="main-content">
     <div class="content">
-        <h1>Add New Admin</h1>
         <form action="" method="post" style="text-transform:none;">
         <div class="form-group">
                 <label for="name">Enter Name</label>

@@ -2,10 +2,18 @@
 
 include('header.php');
 include('connect.php');
+require_once('pagination_helper.php');
+require_once('page_header_helper.php');
 
 // Messages array
 $messages = [];
 $confirms = [];
+$records_per_page = 10;
+$valid_tabs = ['haircut', 'beard', 'skin', 'spa'];
+$active_tab = isset($_GET['tab']) ? strtolower(trim($_GET['tab'])) : 'haircut';
+if (!in_array($active_tab, $valid_tabs, true)) {
+    $active_tab = 'haircut';
+}
 
 // ============================================
 // ADD SERVICES LOGIC
@@ -13,6 +21,7 @@ $confirms = [];
 
 // Hair cut
 if (isset($_POST['haircut-btn'])) {
+    $active_tab = 'haircut';
     $haircut_category = $_POST['haircut_category'];
     $haircut_service = $_POST['haircut_service'];
     $haircut_price = $_POST['haircut_price'];
@@ -33,6 +42,7 @@ if (isset($_POST['haircut-btn'])) {
 
 // beard trim
 if (isset($_POST['beard-btn'])) {
+    $active_tab = 'beard';
     $beard_service = $_POST['beard_service'];
     $beard_price = $_POST['beard_price'];
 
@@ -52,6 +62,7 @@ if (isset($_POST['beard-btn'])) {
 
 // skin treatment
 if (isset($_POST['skin-btn'])) {
+    $active_tab = 'skin';
     $skin_service = $_POST['skin_service'];
     $skin_price = $_POST['skin_price'];
 
@@ -71,6 +82,7 @@ if (isset($_POST['skin-btn'])) {
 
 // spa
 if (isset($_POST['spa-btn'])) {
+    $active_tab = 'spa';
     $spa_category = $_POST['spa_category'];
     $spa_service = $_POST['spa_service'];
     $spa_price = $_POST['spa_price'];
@@ -96,6 +108,7 @@ if (isset($_POST['spa-btn'])) {
 
 // Hair cut
 if (isset($_POST['update-haircut-btn'])) {
+    $active_tab = 'haircut';
     $id = $_POST['update_haircut_id'];
     $category = $_POST['update_haircut_category'];
     $service = $_POST['update_haircut_service'];
@@ -112,6 +125,7 @@ if (isset($_POST['update-haircut-btn'])) {
 
 // Beard trim
 if (isset($_POST['update-beard-btn'])) {
+    $active_tab = 'beard';
     $id = $_POST['update_beard_id'];
     $service = $_POST['update_beard_service'];
     $price = $_POST['update_beard_price'];
@@ -127,6 +141,7 @@ if (isset($_POST['update-beard-btn'])) {
 
 // Skin treatment
 if (isset($_POST['update-skin-btn'])) {
+    $active_tab = 'skin';
     $id = $_POST['update_skin_id'];
     $service = $_POST['update_skin_service'];
     $price = $_POST['update_skin_price'];
@@ -142,6 +157,7 @@ if (isset($_POST['update-skin-btn'])) {
 
 // Spa
 if (isset($_POST['update-spa-btn'])) {
+    $active_tab = 'spa';
     $id = $_POST['update_spa_id'];
     $category = $_POST['update_spa_category'];
     $service = $_POST['update_spa_service'];
@@ -157,18 +173,44 @@ if (isset($_POST['update-spa-btn'])) {
 }
 
 
-// Fetch data
-$haircut = "SELECT * FROM haircut_service";
-$haircut_data = $con->query($haircut);
+// Fetch data with pagination for each tab
+$haircut_page = isset($_GET['haircut_page']) ? (int) $_GET['haircut_page'] : 1;
+$beard_page = isset($_GET['beard_page']) ? (int) $_GET['beard_page'] : 1;
+$skin_page = isset($_GET['skin_page']) ? (int) $_GET['skin_page'] : 1;
+$spa_page = isset($_GET['spa_page']) ? (int) $_GET['spa_page'] : 1;
 
-$beard = "SELECT * FROM beard_service";
-$beard_data = $con->query($beard);
+if ($haircut_page < 1) $haircut_page = 1;
+if ($beard_page < 1) $beard_page = 1;
+if ($skin_page < 1) $skin_page = 1;
+if ($spa_page < 1) $spa_page = 1;
 
-$skin = "SELECT * FROM skin_service";
-$skin_data = $con->query($skin);
+$haircut_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM haircut_service");
+$haircut_total_records = (int) mysqli_fetch_assoc($haircut_total_result)['total'];
+$haircut_total_pages = max(1, (int) ceil($haircut_total_records / $records_per_page));
+if ($haircut_page > $haircut_total_pages) $haircut_page = $haircut_total_pages;
+$haircut_offset = ($haircut_page - 1) * $records_per_page;
+$haircut_data = mysqli_query($con, "SELECT * FROM haircut_service ORDER BY hair_id DESC LIMIT $haircut_offset, $records_per_page");
 
-$spa = "SELECT * FROM spa_service";
-$spa_data = $con->query($spa);
+$beard_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM beard_service");
+$beard_total_records = (int) mysqli_fetch_assoc($beard_total_result)['total'];
+$beard_total_pages = max(1, (int) ceil($beard_total_records / $records_per_page));
+if ($beard_page > $beard_total_pages) $beard_page = $beard_total_pages;
+$beard_offset = ($beard_page - 1) * $records_per_page;
+$beard_data = mysqli_query($con, "SELECT * FROM beard_service ORDER BY beard_id DESC LIMIT $beard_offset, $records_per_page");
+
+$skin_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM skin_service");
+$skin_total_records = (int) mysqli_fetch_assoc($skin_total_result)['total'];
+$skin_total_pages = max(1, (int) ceil($skin_total_records / $records_per_page));
+if ($skin_page > $skin_total_pages) $skin_page = $skin_total_pages;
+$skin_offset = ($skin_page - 1) * $records_per_page;
+$skin_data = mysqli_query($con, "SELECT * FROM skin_service ORDER BY skin_id DESC LIMIT $skin_offset, $records_per_page");
+
+$spa_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM spa_service");
+$spa_total_records = (int) mysqli_fetch_assoc($spa_total_result)['total'];
+$spa_total_pages = max(1, (int) ceil($spa_total_records / $records_per_page));
+if ($spa_page > $spa_total_pages) $spa_page = $spa_total_pages;
+$spa_offset = ($spa_page - 1) * $records_per_page;
+$spa_data = mysqli_query($con, "SELECT * FROM spa_service ORDER BY spa_id DESC LIMIT $spa_offset, $records_per_page");
 
 ?>
 
@@ -180,13 +222,16 @@ $spa_data = $con->query($spa);
     <title>Manage Services</title>
 </head>
 <body>
+<?php
+renderAdminPageIntro(
+    'Services',
+    'Service Catalog Management',
+    'Maintain all service categories, pricing, and sub-service details with tab-based operational controls.'
+);
+?>
+
 <div class="service-body">
     <div class="main-service-container">
-        <div class="main-heading">
-            <h1>Services Management</h1>
-            <p>Manage all salon services beautifully. Add and seamlessly edit services using intuitive modals.</p>
-        </div>
-
         <?php
 foreach ($messages as $msg) {
     echo '<div class="message">' . $msg . '</div>';
@@ -208,14 +253,14 @@ if (isset($confirm) && is_array($confirm)) {
 
         <div class="tabs-container">
             <div class="tab-header">
-                <button class="tab-btn active" onclick="openTab(event, 'haircut')"><i class="fas fa-cut"></i> HairCut Services</button>
-                <button class="tab-btn" onclick="openTab(event, 'beard')"><i class="fas fa-smile"></i> Beard Trim Services</button>
-                <button class="tab-btn" onclick="openTab(event, 'skin')"><i class="fas fa-spa"></i> Skin Treatment Services</button>
-                <button class="tab-btn" onclick="openTab(event, 'spa')"><i class="fas fa-leaf"></i> Spa Services</button>
+                <button type="button" class="tab-btn <?php echo $active_tab === 'haircut' ? 'active' : ''; ?>" onclick="openTab(event, 'haircut')"><i class="fas fa-cut"></i> HairCut Services</button>
+                <button type="button" class="tab-btn <?php echo $active_tab === 'beard' ? 'active' : ''; ?>" onclick="openTab(event, 'beard')"><i class="fas fa-smile"></i> Beard Trim Services</button>
+                <button type="button" class="tab-btn <?php echo $active_tab === 'skin' ? 'active' : ''; ?>" onclick="openTab(event, 'skin')"><i class="fas fa-spa"></i> Skin Treatment Services</button>
+                <button type="button" class="tab-btn <?php echo $active_tab === 'spa' ? 'active' : ''; ?>" onclick="openTab(event, 'spa')"><i class="fas fa-leaf"></i> Spa Services</button>
             </div>
 
             <!-- Haircut Tab -->
-            <div id="haircut" class="tab-content active">
+            <div id="haircut" class="tab-content <?php echo $active_tab === 'haircut' ? 'active' : ''; ?>">
                 <div class="tab-top">
                     <h3>HairCut Services</h3>
                     <button class="add-service-btn" onclick="openModal('modal_haircut')"><i class="fas fa-plus"></i> Add Sub-Service</button>
@@ -233,7 +278,7 @@ if (isset($confirm) && is_array($confirm)) {
                         </thead>
                         <tbody>
                             <?php
-$h_num = 1;
+$h_num = $haircut_offset + 1;
 while ($row = mysqli_fetch_assoc($haircut_data)) { ?>
                             <tr>
                                 <td><?php echo $h_num++; ?></td>
@@ -252,10 +297,25 @@ while ($row = mysqli_fetch_assoc($haircut_data)) { ?>
                         </tbody>
                     </table>
                 </div>
+                <?php
+                echo renderPagination(
+                    $haircut_total_records,
+                    $haircut_page,
+                    $records_per_page,
+                    'service_manage.php',
+                    [
+                        'tab' => 'haircut',
+                        'beard_page' => $beard_page,
+                        'skin_page' => $skin_page,
+                        'spa_page' => $spa_page
+                    ],
+                    'haircut_page'
+                );
+                ?>
             </div>
 
             <!-- Beard Trim Tab -->
-            <div id="beard" class="tab-content">
+            <div id="beard" class="tab-content <?php echo $active_tab === 'beard' ? 'active' : ''; ?>">
                 <div class="tab-top">
                     <h3>Beard Trim Services</h3>
                     <button class="add-service-btn" onclick="openModal('modal_beard')"><i class="fas fa-plus"></i> Add Sub-Service</button>
@@ -272,7 +332,7 @@ while ($row = mysqli_fetch_assoc($haircut_data)) { ?>
                         </thead>
                         <tbody>
                             <?php
-$b_num = 1;
+$b_num = $beard_offset + 1;
 while ($row = mysqli_fetch_assoc($beard_data)) { ?>
                             <tr>
                                 <td><?php echo $b_num++; ?></td>
@@ -290,10 +350,25 @@ while ($row = mysqli_fetch_assoc($beard_data)) { ?>
                         </tbody>
                     </table>
                 </div>
+                <?php
+                echo renderPagination(
+                    $beard_total_records,
+                    $beard_page,
+                    $records_per_page,
+                    'service_manage.php',
+                    [
+                        'tab' => 'beard',
+                        'haircut_page' => $haircut_page,
+                        'skin_page' => $skin_page,
+                        'spa_page' => $spa_page
+                    ],
+                    'beard_page'
+                );
+                ?>
             </div>
 
             <!-- Skin Treatment Tab -->
-            <div id="skin" class="tab-content">
+            <div id="skin" class="tab-content <?php echo $active_tab === 'skin' ? 'active' : ''; ?>">
                 <div class="tab-top">
                     <h3>Skin Treatment Services</h3>
                     <button class="add-service-btn" onclick="openModal('modal_skin')"><i class="fas fa-plus"></i> Add Sub-Service</button>
@@ -310,7 +385,7 @@ while ($row = mysqli_fetch_assoc($beard_data)) { ?>
                         </thead>
                         <tbody>
                             <?php
-$s_num = 1;
+$s_num = $skin_offset + 1;
 while ($row = mysqli_fetch_assoc($skin_data)) { ?>
                             <tr>
                                 <td><?php echo $s_num++; ?></td>
@@ -328,10 +403,25 @@ while ($row = mysqli_fetch_assoc($skin_data)) { ?>
                         </tbody>
                     </table>
                 </div>
+                <?php
+                echo renderPagination(
+                    $skin_total_records,
+                    $skin_page,
+                    $records_per_page,
+                    'service_manage.php',
+                    [
+                        'tab' => 'skin',
+                        'haircut_page' => $haircut_page,
+                        'beard_page' => $beard_page,
+                        'spa_page' => $spa_page
+                    ],
+                    'skin_page'
+                );
+                ?>
             </div>
 
             <!-- Spa Tab -->
-            <div id="spa" class="tab-content">
+            <div id="spa" class="tab-content <?php echo $active_tab === 'spa' ? 'active' : ''; ?>">
                 <div class="tab-top">
                     <h3>Spa Services</h3>
                     <button class="add-service-btn" onclick="openModal('modal_spa')"><i class="fas fa-plus"></i> Add Sub-Service</button>
@@ -349,7 +439,7 @@ while ($row = mysqli_fetch_assoc($skin_data)) { ?>
                         </thead>
                         <tbody>
                             <?php
-$spa_num = 1;
+$spa_num = $spa_offset + 1;
 while ($row = mysqli_fetch_assoc($spa_data)) { ?>
                             <tr>
                                 <td><?php echo $spa_num++; ?></td>
@@ -368,6 +458,21 @@ while ($row = mysqli_fetch_assoc($spa_data)) { ?>
                         </tbody>
                     </table>
                 </div>
+                <?php
+                echo renderPagination(
+                    $spa_total_records,
+                    $spa_page,
+                    $records_per_page,
+                    'service_manage.php',
+                    [
+                        'tab' => 'spa',
+                        'haircut_page' => $haircut_page,
+                        'beard_page' => $beard_page,
+                        'skin_page' => $skin_page
+                    ],
+                    'spa_page'
+                );
+                ?>
             </div>
 
         </div>
@@ -605,20 +710,9 @@ if (window.history.replaceState) {
     window.history.replaceState(null, null, window.location.href);
 }
 
-// Keep the correct tab active after form submission
-<?php if (isset($_POST['haircut-btn']) || isset($_POST['update-haircut-btn'])): ?>
-    openTab(null, 'haircut'); document.querySelectorAll('.tab-btn')[0].classList.add('active');
-<?php
-elseif (isset($_POST['beard-btn']) || isset($_POST['update-beard-btn'])): ?>
-    openTab(null, 'beard'); document.querySelectorAll('.tab-btn')[1].classList.add('active');
-<?php
-elseif (isset($_POST['skin-btn']) || isset($_POST['update-skin-btn'])): ?>
-    openTab(null, 'skin'); document.querySelectorAll('.tab-btn')[2].classList.add('active');
-<?php
-elseif (isset($_POST['spa-btn']) || isset($_POST['update-spa-btn'])): ?>
-    openTab(null, 'spa'); document.querySelectorAll('.tab-btn')[3].classList.add('active');
-<?php
-endif; ?>
+document.addEventListener('DOMContentLoaded', function() {
+    openTab(null, <?php echo json_encode($active_tab); ?>);
+});
 
 </script>
 </body>

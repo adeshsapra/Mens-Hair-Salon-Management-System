@@ -3,6 +3,8 @@ include('header.php');
 include('sidebar.php');
 include('connect.php');
 require_once '../user/wallet_helpers.php';
+require_once 'pagination_helper.php';
+require_once 'page_header_helper.php';
 
 // Handle actions
 if (isset($_GET['action']) && isset($_GET['s_id'])) {
@@ -122,10 +124,23 @@ if (isset($_GET['action']) && isset($_GET['s_id'])) {
     }
 }
 
+// Pagination Logic
+$records_per_page = 10;
+$current_page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($current_page < 1) $current_page = 1;
+$offset = ($current_page - 1) * $records_per_page;
+
+// Count total records
+$count_query = "SELECT COUNT(*) as total FROM product_sales";
+$count_result = mysqli_query($con, $count_query);
+$count_row = mysqli_fetch_assoc($count_result);
+$total_records = $count_row['total'];
+
 $orders = "SELECT ps.*, pay.p_name, pay.p_phno, pay.p_address, pay.p_city, pay.p_state, pay.p_pincode, pay.p_method, pay.p_status as payment_status, pay.stripe_payment_intent_id 
            FROM product_sales ps 
            LEFT JOIN payment pay ON ps.s_id = pay.s_id 
-           ORDER BY ps.s_id DESC";
+           ORDER BY ps.s_id DESC
+           LIMIT $offset, $records_per_page";
 $orders_data = mysqli_query($con, $orders);
 ?>
 
@@ -396,16 +411,17 @@ $orders_data = mysqli_query($con, $orders);
     </style>
 </head>
 <body>
-    <div class="main-content">
-        <div class="content">
-            <h1>Orders Management</h1>
-            <p>Track order progress and manage customer product sales.</p>
-        </div>
-    </div>
+    <?php
+    renderAdminPageIntro(
+        'Products / Manage Orders',
+        'Order Management',
+        'Track every order lifecycle stage, inspect details, and perform operational status actions.'
+    );
+    ?>
 
     <div class="main-content">
         <div class="content">
-            <h2>Existing Orders</h2>
+            <h2>Order Records</h2>
             <div class="table-container">
                 <table>
                     <thead>
@@ -447,11 +463,11 @@ $orders_data = mysqli_query($con, $orders);
                                     <td><?php echo $row['s_quantity']; ?></td>
                                     <td><span class="status-badge <?php echo $status_class; ?>"><?php echo ucfirst($row['s_status']); ?></span></td>
                                     <td>
-                                        <div class="actions-dropdown">
-                                            <button class="dots-btn" onclick="toggleDropdown(this)">
+                                        <div class="action-dropdown">
+                                            <button type="button" class="action-dots" onclick="toggleActionDropdown(event, <?php echo $row['s_id']; ?>)" aria-label="Open actions" aria-expanded="false">
                                                 <i class="fas fa-ellipsis-v"></i>
                                             </button>
-                                            <div class="dropdown-menu">
+                                            <div class="action-dropdown-content">
                                                 <a href="javascript:void(0)" onclick='openOrderModal(<?php echo json_encode($row); ?>)'>
                                                     <i class="fas fa-eye"></i> View Details
                                                 </a>
@@ -460,12 +476,12 @@ $orders_data = mysqli_query($con, $orders);
                                                     <a href="manage_orders.php?action=confirm&s_id=<?php echo $row['s_id']; ?>" onclick="return confirm('Confirm this order?')">
                                                         <i class="fas fa-check"></i> Confirm Order
                                                     </a>
-                                                    <a href="manage_orders.php?action=discard&s_id=<?php echo $row['s_id']; ?>" onclick="return confirm('Discard this order?')">
+                                                    <a href="manage_orders.php?action=discard&s_id=<?php echo $row['s_id']; ?>" onclick="return confirm('Discard this order?')" class="delete-action">
                                                         <i class="fas fa-times"></i> Discard
                                                     </a>
                                                 <?php } elseif ($current_status === 'confirmed') { ?>
                                                     <a href="manage_orders.php?action=processing&s_id=<?php echo $row['s_id']; ?>">
-                                                        <i class="fas fa-cog fa-spin"></i> Process Order
+                                                        <i class="fas fa-spinner fa-spin"></i> Process Order
                                                     </a>
                                                 <?php } elseif ($current_status === 'processing') { ?>
                                                     <a href="manage_orders.php?action=shipped&s_id=<?php echo $row['s_id']; ?>">
@@ -493,6 +509,10 @@ $orders_data = mysqli_query($con, $orders);
                     </tbody>
                 </table>
             </div>
+            <?php 
+            // Display Pagination Links
+            echo renderPagination($total_records, $current_page, $records_per_page, 'manage_orders.php'); 
+            ?>
         </div>
     </div>
 

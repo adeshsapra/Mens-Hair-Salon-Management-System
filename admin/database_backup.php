@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_backup'])) {
 }
 
 include 'header.php';
+require_once 'page_header_helper.php';
 ?>
 
 <style>
@@ -176,12 +177,13 @@ include 'header.php';
     }
 </style>
 
-<div class="main-content backup-page">
-    <div class="content">
-        <h1>Database Backup</h1>
-        <p>Create and download a full SQL dump of the current database.</p>
-    </div>
-</div>
+<?php
+renderAdminPageIntro(
+    'Database Backup',
+    'Backup & Recovery',
+    'Generate a fresh SQL export to secure your latest application data and recovery point.'
+);
+?>
 
 <div class="main-content backup-page">
     <div class="content backup-content">

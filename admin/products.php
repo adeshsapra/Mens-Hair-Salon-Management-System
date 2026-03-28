@@ -3,27 +3,52 @@
 include('header.php');
 // include('sidebar.php');
 include('connect.php');
+require_once('pagination_helper.php');
+require_once('page_header_helper.php');
 
-$query = "SELECT * FROM products";
+// Pagination logic
+$records_per_page = 10;
+$current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+if ($current_page < 1) {
+    $current_page = 1;
+}
+
+$count_query = "SELECT COUNT(*) AS total FROM products";
+$count_result = mysqli_query($con, $count_query);
+$count_row = mysqli_fetch_assoc($count_result);
+$total_records = (int) $count_row['total'];
+
+$total_pages = max(1, (int) ceil($total_records / $records_per_page));
+if ($current_page > $total_pages) {
+    $current_page = $total_pages;
+}
+
+$offset = ($current_page - 1) * $records_per_page;
+
+$query = "SELECT * FROM products ORDER BY p_id DESC LIMIT $offset, $records_per_page";
 $all_product = $con->query($query);
 $has_products = mysqli_num_rows($all_product) > 0;
 ?>
 
+<?php
+renderAdminPageIntro(
+    'Products',
+    'Product Management',
+    'Manage catalog items, pricing, stock levels, and product details for the salon store.'
+);
+?>
+
 <div class="main-content">
     <div class="content">
-        <h1>Products</h1>
-        <p>Manage salon products here.</p>
-
-         <div class="right">
-         <div class="product-button">
-            <a href="add_product.php">Add New Product</a>
+        <div class="page-section-toolbar">
+            <h2>Product Catalog</h2>
+            <a href="add_product.php" class="add-service-btn">
+                <i class="fas fa-plus"></i> Add New Product
+            </a>
         </div>
-         </div>
-       
 
         <!-- Product List -->
         <div class="product-list">
-            <h2>Existing Products</h2>
             <?php if ($has_products): ?>
             <?php while($row = mysqli_fetch_assoc($all_product)){ ?>
                     <?php
@@ -61,6 +86,10 @@ $has_products = mysqli_num_rows($all_product) > 0;
             <?php else: ?>
                 <p>No products found.</p>
             <?php endif; ?>
+
+            <?php
+            echo renderPagination($total_records, $current_page, $records_per_page, 'products.php');
+            ?>
         </div>
     </div>
 </div>

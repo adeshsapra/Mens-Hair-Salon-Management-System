@@ -121,9 +121,30 @@ function getStepIcon($step) {
     .step.active .step-time { color: #666; }
     .order-card-modern { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden; }
     .card-top { display: flex; padding: 20px; }
-    .order-img-container { width: 120px; height: 120px; border-radius: 12px; overflow: hidden; border: 1px solid #eee; }
+    .order-img-container { width: 120px; height: 120px; border-radius: 12px; overflow: hidden; border: 1px solid #eee; flex-shrink: 0; }
     .order-info-container { flex: 1; padding-left: 20px; }
     .order-actions-bar { background: #fcfcfc; padding: 15px 20px; border-top: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+
+    @media (max-width: 992px) {
+        .card-top { flex-direction: column; align-items: flex-start; padding: 15px; }
+        .order-img-container { margin-bottom: 15px; width: 80px; height: 80px; }
+        .order-info-container { padding-left: 0; width: 100%; }
+        
+        /* Vertical Stepper for Mobile/Tablet */
+        .tracking-steps { flex-direction: column; align-items: flex-start; padding-left: 10px; margin-top: 10px; }
+        .tracking-steps::before { top: 0; left: 24px; width: 2px; height: 100%; }
+        .step { display: flex; align-items: center; gap: 12px; text-align: left; margin-bottom: 25px; width: 100%; flex: none; min-height: 40px; position: relative; }
+        .step:last-child { margin-bottom: 0; }
+        .step-icon { margin: 0; flex-shrink: 0; width: 28px; height: 28px; position: relative; z-index: 3; }
+        .step-text { margin: 0; font-size: 12px; width: auto; }
+        .step-time { margin: 0; margin-left: auto; white-space: nowrap; }
+
+        /* Actions Bar Stacked */
+        .order-actions-bar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 15px; }
+        .order-actions-bar > div:first-child { width: 100%; }
+        .order-actions-bar > div:last-child { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; border-top: 1px solid #f0f0f0; padding-top: 12px; }
+        .order-actions-bar .order-action-btn { flex: 1; min-width: 140px; justify-content: center; }
+    }
 </style>
 
 <main class="content">

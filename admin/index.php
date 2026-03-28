@@ -1,6 +1,8 @@
 <?php 
 include('connect.php'); 
 include('header.php'); 
+require_once('pagination_helper.php');
+require_once('page_header_helper.php');
 
 // Assuming these are the maximum expected values (you can adjust accordingly)
 $maxAppointments = 100; // Can be dynamically fetched
@@ -34,7 +36,35 @@ $ordersPercent = $maxOrders > 0 ? ($totalOrders / $maxOrders) * 100 : 0;
 $salesPercent = $maxSales > 0 ? ($totalSales / $maxSales) * 100 : 0;
 $membershipsPercent = $maxMemberships > 0 ? ($totalMemberships / $maxMemberships) * 100 : 0;
 
-// Query to fetch recent payments
+// Query to fetch recent payments (paginated)
+$recent_payments_per_page = 10;
+$recent_payments_page = isset($_GET['dashboard_page']) ? (int) $_GET['dashboard_page'] : 1;
+if ($recent_payments_page < 1) {
+    $recent_payments_page = 1;
+}
+
+$recent_count_query = "
+    SELECT COUNT(*) AS total FROM (
+        SELECT p.pay_id AS pay_id
+        FROM payment p
+        JOIN product_sales ps ON p.s_id = ps.s_id
+        WHERE ps.s_date >= NOW() - INTERVAL 1 DAY
+        UNION ALL
+        SELECT mp.m_id AS pay_id
+        FROM membership_payments mp
+        WHERE mp.payment_date >= NOW() - INTERVAL 1 DAY
+    ) AS recent_union
+";
+$recent_count_result = mysqli_query($con, $recent_count_query);
+$recent_total_records = (int) mysqli_fetch_assoc($recent_count_result)['total'];
+
+$recent_total_pages = max(1, (int) ceil($recent_total_records / $recent_payments_per_page));
+if ($recent_payments_page > $recent_total_pages) {
+    $recent_payments_page = $recent_total_pages;
+}
+
+$recent_offset = ($recent_payments_page - 1) * $recent_payments_per_page;
+
 $query = "
     SELECT p.pay_id AS pay_id, p.p_name AS payment_name, p.p_method AS payment_method, ps.s_grand_total AS amount, p.p_status AS status, 'Product Payment' AS payment_type 
     FROM payment p
@@ -45,7 +75,7 @@ $query = "
     FROM membership_payments mp
     WHERE mp.payment_date >= NOW() - INTERVAL 1 DAY
     ORDER BY pay_id DESC
-    LIMIT 10
+    LIMIT $recent_offset, $recent_payments_per_page
 ";
 $result = mysqli_query($con, $query);
 
@@ -77,12 +107,13 @@ while ($row = mysqli_fetch_assoc($salesDataResult)) {
 $salesDataJson = json_encode($salesData);
 ?>
 
-<div class="main-content">
-    <div class="content">
-        <h1>Welcome to the Salon Management Admin Panel</h1>
-        <p>Select an option from the sidebar to get started.</p>
-    </div>
-</div>
+<?php
+renderAdminPageIntro(
+    'Dashboard',
+    'Admin Dashboard',
+    'Track today\'s activity, monitor growth metrics, and review the latest payments in one place.'
+);
+?>
 
 <div class="dashboard-container">
     <div class="dashboard">
@@ -187,6 +218,16 @@ $salesDataJson = json_encode($salesData);
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            <?php
+            echo renderPagination(
+                $recent_total_records,
+                $recent_payments_page,
+                $recent_payments_per_page,
+                'index.php',
+                [],
+                'dashboard_page'
+            );
+            ?>
         </div>
     </div>
 </div>

@@ -2,6 +2,7 @@
 
 include('header.php'); 
 include('connect.php');
+require_once('page_header_helper.php');
 
 $product_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $query = "SELECT * FROM products WHERE p_id = $product_id";
@@ -101,9 +102,16 @@ $con->close();
     <link rel="stylesheet" href="styles.css"> 
 </head>
 <body>
+    <?php
+    renderAdminPageIntro(
+        'Products / Update Product',
+        'Update Product Details',
+        'Edit product information, pricing, stock, and media to keep catalog data accurate.'
+    );
+    ?>
+
     <div class="main-content">
         <div class="content">
-            <h1>Update Product</h1>
 
             <?php
                         if(isset($message))

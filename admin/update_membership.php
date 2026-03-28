@@ -3,6 +3,7 @@
 include('header.php');
 include('sidebar.php');
 include('connect.php');
+require_once('page_header_helper.php');
 
 
 $royal_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -74,6 +75,14 @@ if(isset($_POST['standard-btn'])) {
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<?php
+renderAdminPageIntro(
+    'Membership / Update Plans',
+    'Update Membership Entries',
+    'Revise feature descriptions and pricing values for Royal, Classic, and Standard membership records.'
+);
+?>
+
 <div class="main-content">
         <div class="content">
             <h1>Update Royal Membership</h1>

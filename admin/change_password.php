@@ -1,6 +1,7 @@
 <?php
 include 'connect.php';
 include 'header.php'; 
+require_once 'page_header_helper.php';
 
 if(isset($_POST['pass'])){
     $admin_id = $_SESSION['admin_id'];
@@ -33,10 +34,16 @@ if(isset($_POST['pass'])){
 }
 ?>
 
+<?php
+renderAdminPageIntro(
+    'Admin Settings / Security',
+    'Change Password',
+    'Update your administrator password to keep the admin panel secure and access-controlled.'
+);
+?>
+
 <div class="main-content">
     <div class="content">
-        <h1>Change Password</h1>
-
         <?php
         if(isset($message)){
             foreach($message as $msg){
@@ -44,7 +51,7 @@ if(isset($_POST['pass'])){
             }
         }
         ?>
-    <form action="change_password.php" method="POST">
+        <form action="change_password.php" method="POST">
             <!-- Admin ID hidden field -->
             <input type="hidden" name="hide_id_admin_hide" value="<?php echo $_SESSION['admin_id']; ?>">
             

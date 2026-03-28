@@ -73,7 +73,7 @@ while ($membership_fetch_row = $result->fetch_assoc()) {
         <a href="../membership.php" class="app_more" style="margin-top: 0;"><i class="fas fa-crown"></i> Upgrade</a>
     </div>
 
-    <div class="description-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px;">
+    <div class="description-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px;">
         <?php if (!empty($descriptions)): ?>
             <?php foreach ($descriptions as $plan => $data): ?>
                 <div class='membership-plan' style="background-color: var(--white); padding: 32px; border-radius: 16px; box-shadow: var(--shadow-sm); border: 1px solid rgba(203,185,15,0.2); position: relative; overflow: hidden;">
@@ -85,7 +85,7 @@ while ($membership_fetch_row = $result->fetch_assoc()) {
                         <i class="fas fa-gem" style="color: var(--brand);"></i> <?= htmlspecialchars($plan) ?>
                     </h2>
                     
-                    <div class="details" style="margin-bottom: 24px; background: #faf9f5; padding: 16px; border-radius: 12px;">
+                    <div class="details" style="margin-bottom: 24px; background: #faf9f5; padding: 16px; border-radius: 12px; max-height: none; overflow: visible;">
                         <ul style="list-style: none; padding: 0; margin: 0;">
                             <?php foreach ($data['descriptions'] as $description): ?>
                                 <li style="margin-bottom: 8px; color: #555; display: flex; align-items: flex-start; gap: 10px;">
@@ -96,6 +96,11 @@ while ($membership_fetch_row = $result->fetch_assoc()) {
                         </ul>
                     </div>
                     
+                    <style>
+                        @media (max-width: 768px) {
+                            .membership-info-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px; }
+                        }
+                    </style>
                     <div class="membership-status" style="border-top: 1px solid rgba(0,0,0,0.05); padding-top: 20px;">
                         <?php 
                         if ($data['remaining_days'] > 0) {
@@ -103,9 +108,9 @@ while ($membership_fetch_row = $result->fetch_assoc()) {
                             $status_bg = (strtolower($data['status']) == 'active') ? '#e6f4ea' : '#fef7e0';
                             $status_icon = (strtolower($data['status']) == 'active') ? 'fa-check-circle' : 'fa-hourglass-half';
                             
-                            echo "<div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;'>";
-                            echo "<span style='background: {$status_bg}; color: {$status_color}; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600;'><i class='fas {$status_icon}'></i> " . htmlspecialchars($data['status']) . "</span>";
-                            echo "<span style='font-size: 14px; color: #666;'><i class='far fa-calendar-alt'></i> Ends: <strong>" . htmlspecialchars($data['end_date']) . "</strong></span>";
+                            echo "<div class='membership-info-row' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;'>";
+                            echo "<span style='background: {$status_bg}; color: {$status_color}; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; white-space: nowrap;'><i class='fas {$status_icon}'></i> " . htmlspecialchars($data['status']) . "</span>";
+                            echo "<span style='font-size: 14px; color: #666; white-space: nowrap;'><i class='far fa-calendar-alt'></i> Ends: <strong>" . htmlspecialchars($data['end_date']) . "</strong></span>";
                             echo "</div>";
                             
                             echo "<div style='background: var(--bg1); color: var(--brand); padding: 12px; border-radius: 8px; text-align: center; font-weight: 500;'>";
