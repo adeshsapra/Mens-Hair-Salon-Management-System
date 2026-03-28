@@ -1,29 +1,32 @@
 <?php
 include 'connect.php';
 require_once '../vendor/autoload.php';
-session_start();
 
-if (!isset($_POST['payment_intent_id'])) {
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($_SESSION['user_id']) || !isset($_POST['payment_intent_id'])) {
     header('Location: checkout.php');
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
-$payment_intent_id = mysqli_real_escape_string($con, $_POST['payment_intent_id']);
-$product_id = isset($_POST['product_id']) && $_POST['product_id'] !== "" ? intval($_POST['product_id']) : null;
+$user_id = (int) $_SESSION['user_id'];
+$product_id = isset($_POST['product_id']) && $_POST['product_id'] !== '' ? (int) $_POST['product_id'] : null;
+$payment_intent_id = trim($_POST['payment_intent_id']);
 
-$fullName = mysqli_real_escape_string($con, $_POST['full-name']);
-$contactNumber = mysqli_real_escape_string($con, $_POST['contact-number']);
-$address = mysqli_real_escape_string($con, $_POST['address']);
-$city = mysqli_real_escape_string($con, $_POST['city']);
-$state = mysqli_real_escape_string($con, $_POST['state']);
-$postalCode = mysqli_real_escape_string($con, $_POST['postal-code']);
+$delivery = [
+    'full_name' => trim($_POST['full-name'] ?? ''),
+    'contact_number' => trim($_POST['contact-number'] ?? ''),
+    'address' => trim($_POST['address'] ?? ''),
+    'city' => trim($_POST['city'] ?? ''),
+    'state' => trim($_POST['state'] ?? ''),
+    'postal_code' => trim($_POST['postal-code'] ?? '')
+];
 
-$currentDate = date('Y-m-d');
-$currentTime = date('H:i:s');
-
-$pay_grand_total = 0;
-$quantityUpdateQueries = [];
+if ($payment_intent_id === '' || in_array('', $delivery, true)) {
+    die('Invalid payment data.');
+}
 
 function getDiscountedPrice($price, $discountPercent) {
     $price = (float) $price;
@@ -31,90 +34,154 @@ function getDiscountedPrice($price, $discountPercent) {
     return round($price - (($price * $discountPercent) / 100), 2);
 }
 
-if ($product_id) {
-    $pay_product = mysqli_query($con, "SELECT * FROM products WHERE p_id = '$product_id'");
-    $fetch_pay_product = mysqli_fetch_assoc($pay_product);
-    $pay_grand_total = $fetch_pay_product ? getDiscountedPrice($fetch_pay_product['p_price'], $fetch_pay_product['p_discount'] ?? 0) : 0;
-} else {
-    $pay_product = mysqli_query($con, "SELECT SUM(c_total) AS grand_total FROM product_cart WHERE id = '$user_id'");
-    $total_row = mysqli_fetch_assoc($pay_product);
-    $pay_grand_total = $total_row && $total_row['grand_total'] ? $total_row['grand_total'] : 0;
+function fetchStripeCheckoutItems($con, $userId, $productId = null) {
+    $items = [];
+    $grandTotal = 0.0;
+
+    if ($productId) {
+        $query = mysqli_query($con, "SELECT * FROM products WHERE p_id = {$productId} LIMIT 1");
+        if ($query && $row = mysqli_fetch_assoc($query)) {
+            $lineTotal = getDiscountedPrice($row['p_price'], $row['p_discount'] ?? 0);
+            $items[] = [
+                'p_id' => (int) $row['p_id'],
+                'p_img' => $row['p_img'],
+                'p_name' => $row['p_name'],
+                'p_price' => (float) $row['p_price'],
+                'p_size' => $row['p_size'],
+                'buy_quantity' => 1,
+                'line_total' => $lineTotal
+            ];
+            $grandTotal = $lineTotal;
+        }
+    } else {
+        $query = mysqli_query($con, "
+            SELECT product_cart.*, products.*
+            FROM product_cart
+            INNER JOIN products ON product_cart.p_id = products.p_id
+            WHERE product_cart.id = {$userId}
+        ");
+        if ($query) {
+            while ($row = mysqli_fetch_assoc($query)) {
+                $lineTotal = isset($row['c_total']) ? (float) $row['c_total'] : ((float) $row['c_price'] * (int) $row['c_quantity']);
+                $items[] = [
+                    'p_id' => (int) $row['p_id'],
+                    'p_img' => $row['p_img'],
+                    'p_name' => $row['p_name'],
+                    'p_price' => (float) $row['p_price'],
+                    'p_size' => $row['p_size'],
+                    'buy_quantity' => (int) $row['c_quantity'],
+                    'line_total' => $lineTotal
+                ];
+                $grandTotal += $lineTotal;
+            }
+        }
+    }
+
+    return ['items' => $items, 'grand_total' => round($grandTotal, 2)];
 }
 
-if ($product_id) {
-    if ($fetch_pay_product) {
-        $discounted_unit_price = getDiscountedPrice($fetch_pay_product['p_price'], $fetch_pay_product['p_discount'] ?? 0);
-        $insertSale = mysqli_query($con, "
-            INSERT INTO product_sales(id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time)
-            VALUES ('$user_id', '{$fetch_pay_product['p_img']}', '{$fetch_pay_product['p_name']}', '{$fetch_pay_product['p_price']}', '{$fetch_pay_product['p_size']}', 1, '{$discounted_unit_price}', '{$pay_grand_total}', '$currentDate', 'confirmed', '$currentTime')");
-
-        if ($insertSale) {
-            $s_id = mysqli_insert_id($con);
-            $insertPayment = mysqli_query($con, "
-                INSERT INTO payment(id, s_id, p_name, p_phno, p_address, p_city, p_state, p_pincode, p_method, p_date, p_time, p_status, stripe_payment_intent_id, stripe_payment_status)
-                VALUES ('$user_id', '$s_id', '$fullName', '$contactNumber', '$address', '$city', '$state', '$postalCode', 'stripe', '$currentDate', '$currentTime', 'paid', '$payment_intent_id', 'succeeded')");
-
-            if ($insertPayment) {
-                mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ('$s_id', 'confirmed', '$currentDate', '$currentTime')");
-                $new_quantity = $fetch_pay_product['p_quantity'] - 1;
-                if ($new_quantity >= 0) {
-                    mysqli_query($con, "UPDATE products SET p_quantity = '$new_quantity' WHERE p_id = '$product_id'");
-                }
-                mysqli_query($con, "DELETE FROM product_cart WHERE id='$user_id' AND p_id='$product_id'");
-                header('Location:thankyou_order.php');
-                exit();
-            }
+function stripeItemsHaveStock($con, $items) {
+    foreach ($items as $item) {
+        $pId = (int) $item['p_id'];
+        $qty = (int) $item['buy_quantity'];
+        if ($qty <= 0) {
+            return false;
+        }
+        $stockResult = mysqli_query($con, "SELECT p_quantity FROM products WHERE p_id = {$pId} LIMIT 1");
+        if (!$stockResult || !($stockRow = mysqli_fetch_assoc($stockResult)) || (int) $stockRow['p_quantity'] < $qty) {
+            return false;
         }
     }
-} else {
-    $all_products = mysqli_query($con, "
-        SELECT product_cart.*, products.*
-        FROM product_cart
-        JOIN products ON product_cart.p_id = products.p_id
-        WHERE product_cart.id = '$user_id'");
+    return true;
+}
 
-    $insertSaleSuccess = true;
-    $s_ids = [];
+$checkoutData = fetchStripeCheckoutItems($con, $user_id, $product_id);
+$items = $checkoutData['items'];
+$grand_total = $checkoutData['grand_total'];
 
-    while ($fetch_pay_product = mysqli_fetch_assoc($all_products)) {
-        $insertSale = mysqli_query($con, "
-            INSERT INTO product_sales(id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time)
-            VALUES ('$user_id', '{$fetch_pay_product['p_img']}', '{$fetch_pay_product['p_name']}', '{$fetch_pay_product['p_price']}', '{$fetch_pay_product['p_size']}', '{$fetch_pay_product['c_quantity']}', '{$fetch_pay_product['c_total']}', '{$pay_grand_total}', '$currentDate', 'confirmed', '$currentTime')");
+if (empty($items) || $grand_total <= 0) {
+    die('Cart is empty.');
+}
 
-        if ($insertSale) {
-            $s_ids[] = mysqli_insert_id($con);
-            $new_quantity = $fetch_pay_product['p_quantity'] - $fetch_pay_product['c_quantity'];
-            if ($new_quantity >= 0) {
-                $quantityUpdateQueries[] = "UPDATE products SET p_quantity = '$new_quantity' WHERE p_id = '{$fetch_pay_product['p_id']}'";
-            }
-        } else {
-            $insertSaleSuccess = false;
+if (!stripeItemsHaveStock($con, $items)) {
+    die('Insufficient stock for one or more products.');
+}
+
+$currentDate = date('Y-m-d');
+$currentTime = date('H:i:s');
+
+$fullName = mysqli_real_escape_string($con, $delivery['full_name']);
+$contactNumber = mysqli_real_escape_string($con, $delivery['contact_number']);
+$address = mysqli_real_escape_string($con, $delivery['address']);
+$city = mysqli_real_escape_string($con, $delivery['city']);
+$state = mysqli_real_escape_string($con, $delivery['state']);
+$postalCode = mysqli_real_escape_string($con, $delivery['postal_code']);
+$intentSafe = mysqli_real_escape_string($con, $payment_intent_id);
+
+mysqli_begin_transaction($con);
+
+try {
+    foreach ($items as $item) {
+        $pId = (int) $item['p_id'];
+        $buyQty = (int) $item['buy_quantity'];
+        $lineTotal = (float) $item['line_total'];
+        $unitPrice = (float) $item['p_price'];
+        $img = mysqli_real_escape_string($con, $item['p_img']);
+        $name = mysqli_real_escape_string($con, $item['p_name']);
+        $size = mysqli_real_escape_string($con, $item['p_size']);
+
+        $updateStock = mysqli_query(
+            $con,
+            "UPDATE products SET p_quantity = p_quantity - {$buyQty} WHERE p_id = {$pId} AND p_quantity >= {$buyQty}"
+        );
+        if (!$updateStock || mysqli_affected_rows($con) === 0) {
+            throw new Exception('Stock update failed.');
         }
-    }
 
-    if ($insertSaleSuccess && !empty($s_ids)) {
-        // We use the last sale ID as a reference or we might need a better way to link multiple sales to one payment.
-        // The current schema seems to link 1 payment to 1 sale via s_id.
-        // I'll use the first one or create a comma separated list if s_id type allows (int usually).
-        // Given the schema, I'll just use the first s_id for the payment record.
-        $s_id = $s_ids[0]; 
-        
+        $insertSale = mysqli_query($con, "
+            INSERT INTO product_sales (
+                id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time
+            ) VALUES (
+                {$user_id}, '{$img}', '{$name}', {$unitPrice}, '{$size}', {$buyQty}, {$lineTotal}, {$grand_total}, '{$currentDate}', 'confirmed', '{$currentTime}'
+            )
+        ");
+        if (!$insertSale) {
+            throw new Exception('Order creation failed.');
+        }
+
+        $saleId = (int) mysqli_insert_id($con);
+
         $insertPayment = mysqli_query($con, "
-            INSERT INTO payment(id, s_id, p_name, p_phno, p_address, p_city, p_state, p_pincode, p_method, p_date, p_time, p_status, stripe_payment_intent_id, stripe_payment_status)
-            VALUES ('$user_id', '$s_id', '$fullName', '$contactNumber', '$address', '$city', '$state', '$postalCode', 'stripe', '$currentDate', '$currentTime', 'paid', '$payment_intent_id', 'succeeded')");
+            INSERT INTO payment (
+                id, s_id, p_name, p_phno, p_address, p_city, p_state, p_pincode, p_method, p_date, p_time, p_status, stripe_payment_intent_id, stripe_payment_status
+            ) VALUES (
+                {$user_id}, {$saleId}, '{$fullName}', '{$contactNumber}', '{$address}', '{$city}', '{$state}', '{$postalCode}', 'stripe', '{$currentDate}', '{$currentTime}', 'paid', '{$intentSafe}', 'succeeded'
+            )
+        ");
+        if (!$insertPayment) {
+            throw new Exception('Payment record creation failed.');
+        }
 
-        if ($insertPayment) {
-            mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ('$s_id', 'confirmed', '$currentDate', '$currentTime')");
-            foreach ($quantityUpdateQueries as $query) {
-                mysqli_query($con, $query);
-            }
-            mysqli_query($con, "DELETE FROM product_cart WHERE id='$user_id'");
-            header('Location:thankyou_order.php');
-            exit();
+        $insertStatus = mysqli_query(
+            $con,
+            "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$saleId}, 'confirmed', '{$currentDate}', '{$currentTime}')"
+        );
+        if (!$insertStatus) {
+            throw new Exception('Order status update failed.');
         }
     }
-}
 
-// If something fails
-echo "Error processing payment. Please contact support.";
+    if ($product_id) {
+        mysqli_query($con, "DELETE FROM product_cart WHERE id = {$user_id} AND p_id = {$product_id}");
+    } else {
+        mysqli_query($con, "DELETE FROM product_cart WHERE id = {$user_id}");
+    }
+
+    mysqli_commit($con);
+    header('Location:thankyou_order.php');
+    exit();
+} catch (Exception $e) {
+    mysqli_rollback($con);
+    die('Error processing payment. ' . $e->getMessage());
+}
 ?>

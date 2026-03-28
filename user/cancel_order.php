@@ -2,65 +2,127 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-include('connect.php');
+
+include 'connect.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header('Location: ../login.php');
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
+$user_id = (int) $_SESSION['user_id'];
+$order_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
-if (isset($_GET['id'])) {
-    $order_id = mysqli_real_escape_string($con, $_GET['id']);
+if ($order_id <= 0) {
+    header('Location: order.php?message=Invalid order ID.');
+    exit;
+}
 
-    // Fetch the order details
-    $order_query = "SELECT s_total, s_name, s_id, s_status FROM product_sales WHERE s_id = '$order_id' AND id = '$user_id'";
-    $order_result = mysqli_query($con, $order_query);
+$order_result = mysqli_query(
+    $con,
+    "SELECT s_id, s_total, s_status, s_date, s_time FROM product_sales WHERE s_id = {$order_id} AND id = {$user_id} LIMIT 1"
+);
 
-    if ($order_result && mysqli_num_rows($order_result) > 0) {
-        $order = mysqli_fetch_assoc($order_result);
-        $current_status = strtolower($order['s_status']);
-        $can_cancel = in_array($current_status, ['pending', 'confirmed', 'processing'], true);
+if (!$order_result || mysqli_num_rows($order_result) === 0) {
+    header('Location: order.php?message=Order not found.');
+    exit;
+}
 
-        if (!$can_cancel) {
-            header("Location: order.php?message=This order cannot be cancelled now.");
-            exit;
+$order = mysqli_fetch_assoc($order_result);
+$current_status = strtolower(trim($order['s_status']));
+
+if (in_array($current_status, ['shipped', 'delivered', 'cancelled', 'refunded'], true)) {
+    header('Location: order.php?message=This order cannot be cancelled now.');
+    exit;
+}
+
+$payment = null;
+$paymentResult = mysqli_query(
+    $con,
+    "SELECT * FROM payment WHERE id = {$user_id} AND s_id = {$order_id} ORDER BY pay_id DESC LIMIT 1"
+);
+if ($paymentResult && mysqli_num_rows($paymentResult) > 0) {
+    $payment = mysqli_fetch_assoc($paymentResult);
+} else {
+    $fallbackResult = mysqli_query(
+        $con,
+        "SELECT * FROM payment WHERE id = {$user_id} AND p_date = '{$order['s_date']}' AND p_time = '{$order['s_time']}' ORDER BY pay_id DESC LIMIT 1"
+    );
+    if ($fallbackResult && mysqli_num_rows($fallbackResult) > 0) {
+        $payment = mysqli_fetch_assoc($fallbackResult);
+    }
+}
+
+$payment_method = $payment ? strtolower(trim($payment['p_method'])) : 'cod';
+$payment_status = $payment ? strtolower(trim($payment['p_status'])) : 'pending';
+$currentDate = date('Y-m-d');
+$currentTime = date('H:i:s');
+
+mysqli_begin_transaction($con);
+
+try {
+    if ($payment_method === 'cod') {
+        $cancelOrder = mysqli_query($con, "UPDATE product_sales SET s_status = 'cancelled' WHERE s_id = {$order_id} AND id = {$user_id}");
+        if (!$cancelOrder) {
+            throw new Exception('Unable to cancel order.');
         }
 
-        $amount = $order['s_total'];
-        $sale_id = $order['s_id'];
-
-        // Prevent duplicate refund entries for the same order
-        $existing_refund = mysqli_query($con, "SELECT id FROM wallet_transactions WHERE user_id = '$user_id' AND sale_id = '$sale_id' LIMIT 1");
-        if ($existing_refund && mysqli_num_rows($existing_refund) > 0) {
-            header("Location: order.php?message=Order already cancelled and refunded.");
-            exit;
+        if ($payment && isset($payment['pay_id'])) {
+            mysqli_query($con, "UPDATE payment SET p_status = 'cancelled' WHERE pay_id = " . (int) $payment['pay_id']);
         }
 
-        // Insert refund into wallet with sale ID reference
-        $insert_wallet_query = "INSERT INTO wallet_transactions (user_id, amount, sale_id) 
-                                 VALUES ('$user_id', '$amount', '$sale_id')";
+        $insertStatus = mysqli_query(
+            $con,
+            "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$order_id}, 'cancelled', '{$currentDate}', '{$currentTime}')"
+        );
+        if (!$insertStatus) {
+            throw new Exception('Unable to update order history.');
+        }
 
-        if (mysqli_query($con, $insert_wallet_query)) {
-            // Mark the order as canceled
-            $currentDate = date('Y-m-d');
-            $currentTime = date('H:i:s');
-            $cancel_order_query = "UPDATE product_sales SET s_status = 'cancelled' WHERE s_id = '$order_id' AND id = '$user_id'";
-            if(mysqli_query($con, $cancel_order_query)) {
-                mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ('$order_id', 'cancelled', '$currentDate', '$currentTime')");
-                header("Location: order.php?message=Order cancelled successfully. Refunded to wallet.");
-                exit;
-            } else {
-                die("Error updating order status: " . mysqli_error($con));
-            }
-        } else {
-            die("Error inserting into wallet: " . mysqli_error($con));
+        mysqli_commit($con);
+        header('Location: order.php?message=Order cancelled successfully.');
+        exit;
+    }
+
+    if (!in_array($payment_method, ['stripe', 'wallet'], true)) {
+        throw new Exception('Unsupported payment method for cancellation.');
+    }
+
+    if ($payment_status === 'refunded') {
+        throw new Exception('Order already refunded.');
+    }
+
+    $updateOrder = mysqli_query($con, "UPDATE product_sales SET s_status = 'cancelled' WHERE s_id = {$order_id} AND id = {$user_id}");
+    if (!$updateOrder) {
+        throw new Exception('Failed to cancel order.');
+    }
+
+    if ($payment && isset($payment['pay_id'])) {
+        $updatePayment = mysqli_query($con, "UPDATE payment SET p_status = 'refund_pending' WHERE pay_id = " . (int) $payment['pay_id']);
+        if (!$updatePayment) {
+            throw new Exception('Failed to update refund status.');
         }
     } else {
-        die("Order not found or unauthorized. Order ID: " . $order_id . ", User ID: " . $user_id . ". Please check if this order belongs to you.");
+        mysqli_query(
+            $con,
+            "UPDATE payment SET p_status = 'refund_pending' WHERE id = {$user_id} AND p_date = '{$order['s_date']}' AND p_time = '{$order['s_time']}' AND LOWER(p_method) IN ('stripe', 'wallet')"
+        );
     }
-} else {
-    header("Location: order.php");
+
+    $insertStatus = mysqli_query(
+        $con,
+        "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$order_id}, 'cancelled', '{$currentDate}', '{$currentTime}')"
+    );
+    if (!$insertStatus) {
+        throw new Exception('Failed to add cancellation history.');
+    }
+
+    mysqli_commit($con);
+    header('Location: order.php?message=Order cancelled. Refund will be processed by admin.');
+    exit;
+} catch (Exception $e) {
+    mysqli_rollback($con);
+    header('Location: order.php?message=' . urlencode($e->getMessage()));
+    exit;
 }
 ?>

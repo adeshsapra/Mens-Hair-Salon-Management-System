@@ -2,6 +2,7 @@
 include('header.php'); 
 include('sidebar.php');
 include('connect.php');
+require_once '../user/wallet_helpers.php';
 
 // Handle actions
 if (isset($_GET['action']) && isset($_GET['s_id'])) {
@@ -21,6 +22,83 @@ if (isset($_GET['action']) && isset($_GET['s_id'])) {
         $new_status = 'shipped';
     } elseif ($action === 'delivered') {
         $new_status = 'delivered';
+    } elseif ($action === 'refund') {
+        $orderResult = mysqli_query(
+            $con,
+            "SELECT ps.s_id, ps.id AS user_id, ps.s_total, ps.s_status, pay.pay_id, pay.p_method, pay.p_status
+             FROM product_sales ps
+             LEFT JOIN payment pay ON ps.s_id = pay.s_id
+             WHERE ps.s_id = {$s_id}
+             LIMIT 1"
+        );
+
+        if (!$orderResult || mysqli_num_rows($orderResult) === 0) {
+            echo "<script>alert('Order not found for refund.'); window.location.href='manage_orders.php';</script>";
+            exit;
+        }
+
+        $orderRow = mysqli_fetch_assoc($orderResult);
+        $paymentMethod = strtolower(trim($orderRow['p_method'] ?? ''));
+        $paymentStatus = strtolower(trim($orderRow['p_status'] ?? ''));
+        $orderStatus = strtolower(trim($orderRow['s_status'] ?? ''));
+        $refundUserId = (int) $orderRow['user_id'];
+        $refundAmount = (float) $orderRow['s_total'];
+
+        if (!in_array($paymentMethod, ['stripe', 'wallet'], true) || $orderStatus !== 'cancelled') {
+            echo "<script>alert('Refund action allowed only for cancelled Stripe/Wallet orders.'); window.location.href='manage_orders.php';</script>";
+            exit;
+        }
+
+        if ($paymentStatus === 'refunded') {
+            echo "<script>alert('Order already refunded.'); window.location.href='manage_orders.php';</script>";
+            exit;
+        }
+
+        mysqli_begin_transaction($con);
+        try {
+            $existingRefund = mysqli_query(
+                $con,
+                "SELECT id FROM wallet_transactions WHERE user_id = {$refundUserId} AND order_id = {$s_id} AND source = 'refund' LIMIT 1"
+            );
+            if ($existingRefund && mysqli_num_rows($existingRefund) > 0) {
+                throw new Exception('Refund already exists in wallet history.');
+            }
+
+            $walletCredited = creditWalletBalance($con, $refundUserId, $refundAmount, 'refund', $s_id);
+            if (!$walletCredited) {
+                throw new Exception('Failed to credit wallet.');
+            }
+
+            $updateOrder = mysqli_query($con, "UPDATE product_sales SET s_status = 'refunded' WHERE s_id = {$s_id}");
+            if (!$updateOrder) {
+                throw new Exception('Failed to update order status.');
+            }
+
+            if (!empty($orderRow['pay_id'])) {
+                $updatePayment = mysqli_query($con, "UPDATE payment SET p_status = 'refunded' WHERE pay_id = " . (int) $orderRow['pay_id']);
+            } else {
+                $updatePayment = mysqli_query($con, "UPDATE payment SET p_status = 'refunded' WHERE s_id = {$s_id} AND LOWER(p_method) IN ('stripe', 'wallet')");
+            }
+            if (!$updatePayment) {
+                throw new Exception('Failed to update payment status.');
+            }
+
+            $insertHistory = mysqli_query(
+                $con,
+                "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$s_id}, 'refunded', '{$currentDate}', '{$currentTime}')"
+            );
+            if (!$insertHistory) {
+                throw new Exception('Failed to write refund status history.');
+            }
+
+            mysqli_commit($con);
+            echo "<script>alert('Refund processed and wallet credited successfully.'); window.location.href='manage_orders.php';</script>";
+            exit;
+        } catch (Exception $e) {
+            mysqli_rollback($con);
+            echo "<script>alert('Refund failed: " . addslashes($e->getMessage()) . "'); window.location.href='manage_orders.php';</script>";
+            exit;
+        }
     }
 
     if ($new_status !== '') {
@@ -109,6 +187,7 @@ $orders_data = mysqli_query($con, $orders);
         .status-shipped { background: #e2e3e5; color: #383d41; }
         .status-delivered { background: #d1ecf1; color: #0c5460; }
         .status-cancelled { background: #f8d7da; color: #721c24; }
+        .status-refunded { background: #fce8e6; color: #d93025; }
 
         /* Actions Dropdown */
         .actions-dropdown {
@@ -345,6 +424,8 @@ $orders_data = mysqli_query($con, $orders);
                             $counter = 1;
                             while($row = mysqli_fetch_assoc($orders_data)) {
                                 $current_status = strtolower($row['s_status']);
+                                $payment_method = strtolower($row['p_method'] ?? '');
+                                $payment_status = strtolower($row['payment_status'] ?? '');
                                 $status_class = 'status-' . $current_status;
                                 
                                 // Fetch history for this order for the modal
@@ -391,6 +472,10 @@ $orders_data = mysqli_query($con, $orders);
                                                 <?php } elseif ($current_status === 'shipped') { ?>
                                                     <a href="manage_orders.php?action=delivered&s_id=<?php echo $row['s_id']; ?>" onclick="return confirm('Mark as delivered?')">
                                                         <i class="fas fa-home"></i> Deliver Order
+                                                    </a>
+                                                <?php } elseif ($current_status === 'cancelled' && in_array($payment_method, ['stripe', 'wallet'], true) && $payment_status !== 'refunded') { ?>
+                                                    <a href="manage_orders.php?action=refund&s_id=<?php echo $row['s_id']; ?>" onclick="return confirm('Process refund to user wallet?')">
+                                                        <i class="fas fa-wallet"></i> Refund
                                                     </a>
                                                 <?php } ?>
                                             </div>
@@ -443,7 +528,7 @@ $orders_data = mysqli_query($con, $orders);
             document.getElementById('modalOrderTitle').innerText = 'Order #' + order.s_id + ' Progress';
             
             let paymentInfo = '';
-            if (order.p_method === 'stripe') {
+            if (order.p_method === 'stripe' && order.stripe_payment_intent_id) {
                 paymentInfo = `<div class="info-row"><div class="info-label">Transaction:</div><div class="info-value">${order.stripe_payment_intent_id.substring(0, 15)}...</div></div>`;
             }
 
