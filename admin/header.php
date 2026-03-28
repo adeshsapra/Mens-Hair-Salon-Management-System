@@ -1,7 +1,9 @@
 <?php
 
 include 'connect.php';
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 if (!isset($_SESSION['admin_id'])) {
     header('Location: admin_login.php');
     exit();
@@ -114,6 +116,7 @@ if ($admin_result) {
         </li>
         <li><a href="service_manage.php"><i class="fas fa-cut"></i> Services</a></li>
         <li><a href="payment_manage.php"><i class="fas fa-box"></i> Payment</a></li>
+        <li><a href="database_backup.php"><i class="fas fa-database"></i> Database Backup</a></li>
         <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
     </ul>
 </div>

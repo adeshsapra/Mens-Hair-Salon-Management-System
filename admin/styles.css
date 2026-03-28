@@ -1220,6 +1220,56 @@ transition: 0.5s linear;
     text-transform: lowercase;
 }
 
+/* database backup */
+.backup-content .backup-action-form {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.backup-create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--brand);
+    color: var(--bg1);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 22px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(24, 21, 13, 0.18);
+}
+
+.backup-create-btn i {
+    font-size: 14px;
+}
+
+.backup-create-btn:hover {
+    background: var(--bg1);
+    color: var(--bg2);
+    transform: translateY(-1px);
+}
+
+.backup-create-btn:active {
+    transform: translateY(0);
+}
+
+.backup-note {
+    margin-top: 12px;
+    color: #555;
+    font-size: 14px;
+}
+
+.backup-error {
+    background: #fde8e8;
+    color: #b91c1c;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
 @media (max-width: 768px) {
     .dashboard {
         flex-direction: column;
