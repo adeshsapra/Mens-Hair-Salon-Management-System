@@ -757,108 +757,262 @@ input[type="password"] {
 
 
 
-/* service manage */
-
+/* service manage redesign */
 .service-body {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
-    margin-left: 230px;
+    margin-left: 250px;
+    padding-top: 2rem;
 }
 
 .main-service-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    /* max-width: 1200px; */
     width: 95%;
-    padding: 20px;
+    max-width: 1200px;
+    background: transparent;
+    border-radius: 12px;
 }
 
 .main-service-container .main-heading {
     text-align: left;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
     background-color: #fff;
-    width: 100%;
-    padding: 20px;
-    border-radius: 8px;
-    font-size: 15px;
-}
-.main-heading p{
-    font-size: 17px;
-    font-weight: 500;
-}
-.main-service-container .service-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    width: 100%;
+    padding: 25px 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
-.service-grid .service-container {
+.main-heading h1 {
+    font-size: 28px;
+    color: var(--bg1);
+    margin: 0;
+}
+
+.main-heading p {
+    font-size: 16px;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Tabs Container */
+.tabs-container {
     background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
-.service-container .service-category {
+.tab-header {
+    display: flex;
+    gap: 15px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+    overflow-x: auto;
+}
+
+.tab-btn {
+    padding: 12px 25px;
+    background: #f8f9fa;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tab-btn:hover {
+    background: #e9ecef;
+    color: var(--bg1);
+}
+
+.tab-btn.active {
+    background: var(--bg1);
+    color: var(--bg2);
+    box-shadow: 0 4px 10px rgba(24, 21, 13, 0.3);
+    transform: translateY(-2px);
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
 }
 
-.service-category h3 {
+.tab-top h3 {
+    font-size: 22px;
     color: var(--bg1);
-    font-size: 23px;
-    margin-bottom: 1.5rem;
-    text-align: center;
+    margin: 0;
 }
 
-.service-category .form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    margin-top: 15px;
-    font-weight: bold;
-}
-
-.service-category .form-group input[type="text"], 
-input[type="number"], 
-select {
-    width: 100%;
-    padding: 8px;
-    margin-top: 5px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-}
-
-.service-category button {
-    background-color: var(--brand);
+.add-service-btn {
+    padding: 12px 20px;
+    background: var(--brand);
     color: var(--bg1);
     border: none;
-    padding: 13px 17px;
-    border-radius: 4px;
-    font-size: 15px;
-    font-weight: 600;
+    border-radius: 8px;
     cursor: pointer;
-}
-.service-category .admin-service-btn{
-    margin-top: 76px;
-}
-.service-category button:hover {
-    background-color: var(--bg1);
-    color: var(--bg2);
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.service-category h1{
-    margin-top: 5rem;
-    margin-bottom: 1rem;
-    color: var(--bg1);
-    font-size: 20px;
+.add-service-btn:hover {
+    background: var(--bg1);
+    color: var(--bg2);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
+
+/* Modal Styling */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-overlay.active {
+    display: flex;
+    animation: fadeIn 0.3s;
+}
+
+.modal-box {
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    width: 450px;
+    max-width: 90%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    position: relative;
+    transform: translateY(20px);
+    animation: slideUp 0.3s forwards;
+}
+
+@keyframes slideUp {
+    to { transform: translateY(0); }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.modal-header h3 {
+    font-size: 22px;
+    color: var(--bg1);
+    margin: 0;
+}
+
+.close-modal {
+    cursor: pointer;
+    font-size: 28px;
+    font-weight: 300;
+    color: #999;
+    background: transparent;
+    border: none;
+    line-height: 1;
+}
+
+.close-modal:hover {
+    color: #dc3545;
+}
+
+.modal-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #444;
+}
+
+.modal-form input, .modal-form select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fafafa;
+    transition: border 0.3s;
+}
+
+.modal-form input:focus, .modal-form select:focus {
+    border-color: var(--bg1);
+    outline: none;
+    background: #fff;
+}
+
+.modal-submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--bg1);
+    color: var(--bg2);
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.modal-submit-btn:hover {
+    background: var(--brand);
+    color: var(--bg1);
+}
+
+/* Service Tables Specific Fixes */
+.service-table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.service-table-wrapper table {
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+}
+
+.service-table-wrapper th {
+    background-color: #f8f9fa;
+    color: var(--bg1);
+    font-weight: 700;
+    padding: 15px;
+    text-align: left;
+    border-bottom: 2px solid #ddd;
+}
+.service-table-wrapper td {
+    padding: 15px;
+    vertical-align: middle;
+    text-align: left;
+}
+
 
 /* service manage */
 
@@ -1289,4 +1443,62 @@ transition: 0.5s linear;
         width: 100%;
         margin: 0;
     }
+}
+
+/* UI Polish - Equal Tabs & Refined Action Buttons */
+.tab-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+    overflow-x: auto;
+}
+.tab-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 12px 10px;
+}
+.services-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+.services-buttons .service-update,
+.services-buttons .service-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+    margin: 0;
+}
+.services-buttons .service-update {
+    background-color: #f1f5f9;
+    color: #334155;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.services-buttons .service-update:hover {
+    background-color: var(--bg1);
+    color: #fff;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 12px rgba(0,0,0,0.15);
+}
+.services-buttons .service-delete {
+    background-color: #fef2f2;
+    color: #ef4444;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1);
+}
+.services-buttons .service-delete:hover {
+    background-color: #ef4444;
+    color: #fff;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 12px rgba(239, 68, 68, 0.3);
 }

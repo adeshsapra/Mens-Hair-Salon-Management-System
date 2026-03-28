@@ -25,12 +25,16 @@ $delivery = [
 ];
 
 if ($payment_intent_id === '' || in_array('', $delivery, true)) {
-    die('Invalid payment data.');
+    $_SESSION['toast-type'] = 'error';
+    $_SESSION['toast-msg'] = 'Invalid payment data.';
+    header('Location: checkout.php');
+    exit();
 }
 
 function getDiscountedPrice($price, $discountPercent) {
+    if (empty($price)) return 0;
     $price = (float) $price;
-    $discountPercent = max(0, min(100, (float) $discountPercent));
+    $discountPercent = max(0, min(100, (float) ($discountPercent ?? 0)));
     return round($price - (($price * $discountPercent) / 100), 2);
 }
 
@@ -100,11 +104,17 @@ $items = $checkoutData['items'];
 $grand_total = $checkoutData['grand_total'];
 
 if (empty($items) || $grand_total <= 0) {
-    die('Cart is empty.');
+    $_SESSION['toast-type'] = 'error';
+    $_SESSION['toast-msg'] = 'Cart is empty.';
+    header('Location: checkout.php');
+    exit();
 }
 
 if (!stripeItemsHaveStock($con, $items)) {
-    die('Insufficient stock for one or more products.');
+    $_SESSION['toast-type'] = 'error';
+    $_SESSION['toast-msg'] = 'Insufficient stock for one or more products.';
+    header('Location: checkout.php');
+    exit();
 }
 
 $currentDate = date('Y-m-d');
@@ -130,20 +140,14 @@ try {
         $name = mysqli_real_escape_string($con, $item['p_name']);
         $size = mysqli_real_escape_string($con, $item['p_size']);
 
-        $updateStock = mysqli_query(
-            $con,
-            "UPDATE products SET p_quantity = p_quantity - {$buyQty} WHERE p_id = {$pId} AND p_quantity >= {$buyQty}"
-        );
+        $updateStock = mysqli_query($con, "UPDATE products SET p_quantity = p_quantity - {$buyQty} WHERE p_id = {$pId} AND p_quantity >= {$buyQty}");
         if (!$updateStock || mysqli_affected_rows($con) === 0) {
             throw new Exception('Stock update failed.');
         }
 
         $insertSale = mysqli_query($con, "
-            INSERT INTO product_sales (
-                id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time
-            ) VALUES (
-                {$user_id}, '{$img}', '{$name}', {$unitPrice}, '{$size}', {$buyQty}, {$lineTotal}, {$grand_total}, '{$currentDate}', 'confirmed', '{$currentTime}'
-            )
+            INSERT INTO product_sales (id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time)
+            VALUES ({$user_id}, '{$img}', '{$name}', {$unitPrice}, '{$size}', {$buyQty}, {$lineTotal}, {$grand_total}, '{$currentDate}', 'confirmed', '{$currentTime}')
         ");
         if (!$insertSale) {
             throw new Exception('Order creation failed.');
@@ -152,23 +156,14 @@ try {
         $saleId = (int) mysqli_insert_id($con);
 
         $insertPayment = mysqli_query($con, "
-            INSERT INTO payment (
-                id, s_id, p_name, p_phno, p_address, p_city, p_state, p_pincode, p_method, p_date, p_time, p_status, stripe_payment_intent_id, stripe_payment_status
-            ) VALUES (
-                {$user_id}, {$saleId}, '{$fullName}', '{$contactNumber}', '{$address}', '{$city}', '{$state}', '{$postalCode}', 'stripe', '{$currentDate}', '{$currentTime}', 'paid', '{$intentSafe}', 'succeeded'
-            )
+            INSERT INTO payment (id, s_id, p_name, p_phno, p_address, p_city, p_state, p_pincode, p_method, p_date, p_time, p_status, stripe_payment_intent_id, stripe_payment_status)
+            VALUES ({$user_id}, {$saleId}, '{$fullName}', '{$contactNumber}', '{$address}', '{$city}', '{$state}', '{$postalCode}', 'stripe', '{$currentDate}', '{$currentTime}', 'paid', '{$intentSafe}', 'succeeded')
         ");
         if (!$insertPayment) {
             throw new Exception('Payment record creation failed.');
         }
 
-        $insertStatus = mysqli_query(
-            $con,
-            "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$saleId}, 'confirmed', '{$currentDate}', '{$currentTime}')"
-        );
-        if (!$insertStatus) {
-            throw new Exception('Order status update failed.');
-        }
+        mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$saleId}, 'confirmed', '{$currentDate}', '{$currentTime}')");
     }
 
     if ($product_id) {
@@ -178,10 +173,15 @@ try {
     }
 
     mysqli_commit($con);
+    $_SESSION['toast-type'] = 'success';
+    $_SESSION['toast-msg'] = 'Payment successful! Order placed.';
     header('Location:thankyou_order.php');
     exit();
 } catch (Exception $e) {
     mysqli_rollback($con);
-    die('Error processing payment. ' . $e->getMessage());
+    $_SESSION['toast-type'] = 'error';
+    $_SESSION['toast-msg'] = 'Error processing payment. Please contact support.';
+    header('Location: checkout.php');
+    exit();
 }
 ?>

@@ -32,7 +32,7 @@ if(isset($_POST['update_update_btn'])){
             // Update grand total in the database
             mysqli_query($con, "UPDATE `product_cart` SET c_grand_total = '$grand_total' WHERE id = '{$_SESSION['user_id']}'");
 
-            header('location:products_user.php');
+            header('location:products_user.php?toast=success&msg=Item+removed+from+cart!');
             exit();
         }
     }
@@ -52,7 +52,7 @@ if(isset($_GET['id'])){
     // Update the grand total after removal
     mysqli_query($con, "UPDATE `product_cart` SET c_grand_total = '$grand_total' WHERE id = '{$_SESSION['user_id']}'");
 
-    header('location:products_user.php');
+    header('location:products_user.php?toast=success&msg=Item+removed+from+cart!');
     exit();
 }
 
@@ -60,7 +60,7 @@ if(isset($_GET['delete_all'])){
     if(mysqli_query($con, "DELETE FROM `product_cart` WHERE id = '{$_SESSION['user_id']}'")) {
         // Set grand total to 0 after all products are removed
         mysqli_query($con, "UPDATE `product_cart` SET c_grand_total = 0 WHERE id = '{$_SESSION['user_id']}'");
-        header('Location: products_user.php');
+        header('Location: products_user.php?toast=success&msg=Item+removed+from+cart!');
         exit();
     } else {
         die("Error emptying cart: " . mysqli_error($con));
@@ -182,3 +182,4 @@ if (mysqli_num_rows($select_cart) === 0) {
 </section>
 </div>
 </main>
+

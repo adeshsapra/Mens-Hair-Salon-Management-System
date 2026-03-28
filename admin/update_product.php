@@ -81,7 +81,7 @@ if (isset($_POST['update'])) {
         
         if ($con->query($update_query) === TRUE) {
             $confirm[]= "Product updated successfully!";
-            header("Location:products.php");
+            header("Location:products.php?toast=success&msg=Product+updated+successfully!");
         } else {
             echo "Error updating product: " . $con->error;
         }
@@ -209,3 +209,5 @@ $con->close();
     </script>
 </body>
 </html>
+
+

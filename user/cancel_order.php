@@ -14,7 +14,7 @@ $user_id = (int) $_SESSION['user_id'];
 $order_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
 if ($order_id <= 0) {
-    header('Location: order.php?message=Invalid order ID.');
+    header('Location: order.php?toast=error&msg=Invalid+order+ID.');
     exit;
 }
 
@@ -24,7 +24,7 @@ $order_result = mysqli_query(
 );
 
 if (!$order_result || mysqli_num_rows($order_result) === 0) {
-    header('Location: order.php?message=Order not found.');
+    header('Location: order.php?toast=error&msg=Order+not+found.');
     exit;
 }
 
@@ -32,10 +32,20 @@ $order = mysqli_fetch_assoc($order_result);
 $current_status = strtolower(trim($order['s_status']));
 
 if (in_array($current_status, ['shipped', 'delivered', 'cancelled', 'refunded'], true)) {
-    header('Location: order.php?message=This order cannot be cancelled now.');
+    header("Location: order.php?toast=error&msg=This+order+cannot+be+cancelled+now.");
     exit;
 }
 
+// Prevent duplicate refund entries for the same order (from adesh branch)
+$amount = $order['s_total'];
+$sale_id = $order['s_id'];
+$existing_refund = mysqli_query($con, "SELECT id FROM wallet_transactions WHERE user_id = '$user_id' AND sale_id = '$sale_id' LIMIT 1");
+if ($existing_refund && mysqli_num_rows($existing_refund) > 0) {
+    header("Location: order.php?toast=info&msg=Order+already+cancelled+and+refunded.");
+    exit;
+}
+
+// Look up payment record (from main branch)
 $payment = null;
 $paymentResult = mysqli_query(
     $con,
@@ -80,7 +90,7 @@ try {
         }
 
         mysqli_commit($con);
-        header('Location: order.php?message=Order cancelled successfully.');
+        header('Location: order.php?toast=success&msg=Order+cancelled+successfully.');
         exit;
     }
 
@@ -109,6 +119,10 @@ try {
         );
     }
 
+    // Wallet refund: credit back to wallet (from adesh branch)
+    $insert_wallet_query = "INSERT INTO wallet_transactions (user_id, sale_id, type, amount, source, created_at) VALUES ('$user_id', '$order_id', 'credit', '{$order['s_total']}', 'order_refund', NOW())";
+    mysqli_query($con, $insert_wallet_query);
+
     $insertStatus = mysqli_query(
         $con,
         "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$order_id}, 'cancelled', '{$currentDate}', '{$currentTime}')"
@@ -118,11 +132,11 @@ try {
     }
 
     mysqli_commit($con);
-    header('Location: order.php?message=Order cancelled. Refund will be processed by admin.');
+    header('Location: order.php?toast=success&msg=Order+cancelled+successfully.+Refunded+to+wallet.');
     exit;
 } catch (Exception $e) {
     mysqli_rollback($con);
-    header('Location: order.php?message=' . urlencode($e->getMessage()));
+    header('Location: order.php?toast=error&msg=' . urlencode($e->getMessage()));
     exit;
 }
 ?>

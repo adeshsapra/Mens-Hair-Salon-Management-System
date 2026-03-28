@@ -5,6 +5,6 @@
     $user = "DELETE FROM appointments WHERE a_id = $user_id";
     $user_data = mysqli_query($con,$user);
     if($user_data){
-        header("Location:appointment_user.php");
+        header("Location:appointment_user.php?toast=success&msg=Appointment+cancelled+successfully!");
     }
 ?>

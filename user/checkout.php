@@ -16,8 +16,9 @@ $product_id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $error_message = '';
 
 function getDiscountedPrice($price, $discountPercent) {
+    if (empty($price)) return 0;
     $price = (float) $price;
-    $discountPercent = max(0, min(100, (float) $discountPercent));
+    $discountPercent = max(0, min(100, (float) ($discountPercent ?? 0)));
     return round($price - (($price * $discountPercent) / 100), 2);
 }
 
@@ -48,7 +49,6 @@ function fetchCheckoutItems($con, $userId, $productId = null) {
             INNER JOIN products ON product_cart.p_id = products.p_id
             WHERE product_cart.id = {$userId}
         ");
-
         if ($query) {
             while ($row = mysqli_fetch_assoc($query)) {
                 $lineTotal = isset($row['c_total']) ? (float) $row['c_total'] : ((float) $row['c_price'] * (int) $row['c_quantity']);
@@ -67,10 +67,7 @@ function fetchCheckoutItems($con, $userId, $productId = null) {
         }
     }
 
-    return [
-        'items' => $items,
-        'grand_total' => round($grandTotal, 2)
-    ];
+    return ['items' => $items, 'grand_total' => round($grandTotal, 2)];
 }
 
 function checkoutItemsHaveStock($items) {
@@ -122,20 +119,14 @@ function createOrderFromItems($con, $userId, $items, $grandTotal, $productId, $d
             $pName = mysqli_real_escape_string($con, $item['p_name']);
             $pSize = mysqli_real_escape_string($con, $item['p_size']);
 
-            $updateStock = mysqli_query(
-                $con,
-                "UPDATE products SET p_quantity = p_quantity - {$buyQty} WHERE p_id = {$pId} AND p_quantity >= {$buyQty}"
-            );
+            $updateStock = mysqli_query($con, "UPDATE products SET p_quantity = p_quantity - {$buyQty} WHERE p_id = {$pId} AND p_quantity >= {$buyQty}");
             if (!$updateStock || mysqli_affected_rows($con) === 0) {
                 throw new Exception('Insufficient stock while placing order.');
             }
 
             $insertSale = mysqli_query($con, "
-                INSERT INTO product_sales (
-                    id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time
-                ) VALUES (
-                    {$userId}, '{$pImg}', '{$pName}', {$unitPrice}, '{$pSize}', {$buyQty}, {$lineTotal}, {$grandTotal}, '{$currentDate}', '{$orderStatus}', '{$currentTime}'
-                )
+                INSERT INTO product_sales (id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time)
+                VALUES ({$userId}, '{$pImg}', '{$pName}', {$unitPrice}, '{$pSize}', {$buyQty}, {$lineTotal}, {$grandTotal}, '{$currentDate}', '{$orderStatus}', '{$currentTime}')
             ");
             if (!$insertSale) {
                 throw new Exception('Failed to create order record.');
@@ -145,31 +136,19 @@ function createOrderFromItems($con, $userId, $items, $grandTotal, $productId, $d
             $createdSaleIds[] = $saleId;
 
             $insertPayment = mysqli_query($con, "
-                INSERT INTO payment (
-                    id, s_id, p_name, p_phno, p_address, p_city, p_state, p_pincode, p_method, p_date, p_time, p_status, stripe_payment_intent_id, stripe_payment_status
-                ) VALUES (
-                    {$userId}, {$saleId}, '{$fullName}', '{$contactNumber}', '{$address}', '{$city}', '{$state}', '{$postalCode}', '{$paymentMethod}', '{$currentDate}', '{$currentTime}', '{$paymentStatus}', {$stripeIntentValue}, {$stripeStatusValue}
-                )
+                INSERT INTO payment (id, s_id, p_name, p_phno, p_address, p_city, p_state, p_pincode, p_method, p_date, p_time, p_status, stripe_payment_intent_id, stripe_payment_status)
+                VALUES ({$userId}, {$saleId}, '{$fullName}', '{$contactNumber}', '{$address}', '{$city}', '{$state}', '{$postalCode}', '{$paymentMethod}', '{$currentDate}', '{$currentTime}', '{$paymentStatus}', {$stripeIntentValue}, {$stripeStatusValue})
             ");
             if (!$insertPayment) {
                 throw new Exception('Failed to create payment record.');
             }
 
-            $insertStatusHistory = mysqli_query(
-                $con,
-                "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$saleId}, '{$orderStatus}', '{$currentDate}', '{$currentTime}')"
-            );
-            if (!$insertStatusHistory) {
-                throw new Exception('Failed to write order status history.');
-            }
+            mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$saleId}, '{$orderStatus}', '{$currentDate}', '{$currentTime}')");
         }
 
         if ($paymentMethod === 'wallet' && !empty($createdSaleIds)) {
             $firstSaleId = (int) $createdSaleIds[0];
-            mysqli_query(
-                $con,
-                "UPDATE wallet_transactions SET order_id = {$firstSaleId}, sale_id = {$firstSaleId} WHERE user_id = {$userId} AND type = 'debit' AND source = 'order_payment' AND order_id IS NULL ORDER BY id DESC LIMIT 1"
-            );
+            mysqli_query($con, "UPDATE wallet_transactions SET order_id = {$firstSaleId}, sale_id = {$firstSaleId} WHERE user_id = {$userId} AND type = 'debit' AND source = 'order_payment' AND order_id IS NULL ORDER BY id DESC LIMIT 1");
         }
 
         if ($productId) {
@@ -212,36 +191,20 @@ if (isset($_POST['cod-btn']) || isset($_POST['wallet-btn'])) {
             if ($walletBalance < $pay_grand_total) {
                 $error_message = 'Wallet balance is not enough for this order.';
             } else {
-                $result = createOrderFromItems(
-                    $con,
-                    $user_id,
-                    $checkout_items,
-                    $pay_grand_total,
-                    $product_id,
-                    $delivery,
-                    'wallet',
-                    'confirmed',
-                    'paid'
-                );
+                $result = createOrderFromItems($con, $user_id, $checkout_items, $pay_grand_total, $product_id, $delivery, 'wallet', 'confirmed', 'paid');
                 if ($result['success']) {
+                    $_SESSION['toast-type'] = 'success';
+                    $_SESSION['toast-msg'] = 'Order placed successfully!';
                     header('Location:thankyou_order.php');
                     exit();
                 }
                 $error_message = $result['message'];
             }
         } else {
-            $result = createOrderFromItems(
-                $con,
-                $user_id,
-                $checkout_items,
-                $pay_grand_total,
-                $product_id,
-                $delivery,
-                'cod',
-                'pending',
-                'pending'
-            );
+            $result = createOrderFromItems($con, $user_id, $checkout_items, $pay_grand_total, $product_id, $delivery, 'cod', 'pending', 'pending');
             if ($result['success']) {
+                $_SESSION['toast-type'] = 'success';
+                $_SESSION['toast-msg'] = 'Order placed successfully!';
                 header('Location:thankyou_order.php');
                 exit();
             }
@@ -262,7 +225,15 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Checkout</title>
     <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        #global-toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 100000; display: flex; flex-direction: column; gap: 10px; }
+        .global-toast { min-width: 250px; background: #333; color: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 500; transform: translateX(120%); transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+        .global-toast.show { transform: translateX(0); }
+        .toast-success { background: #10b981; border-left: 5px solid #059669; }
+        .toast-error { background: #ef4444; border-left: 5px solid #b91c1c; }
+    </style>
 </head>
 <body class="checkout-page">
     <div class="payment-container">
@@ -286,27 +257,22 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
                             <label for="full-name">Full Name</label>
                             <input type="text" id="full-name" name="full-name" placeholder="Enter your full name" required>
                         </div>
-
                         <div class="form-field">
                             <label for="contact-number">Contact Number</label>
                             <input type="text" id="contact-number" name="contact-number" placeholder="Enter your contact number" required>
                         </div>
-
                         <div class="form-field full">
                             <label for="address">Address</label>
                             <textarea id="address" name="address" placeholder="Enter your delivery address" required></textarea>
                         </div>
-
                         <div class="form-field">
                             <label for="city">City</label>
                             <input type="text" id="city" name="city" placeholder="Enter your city" required>
                         </div>
-
                         <div class="form-field">
                             <label for="state">State</label>
                             <input type="text" id="state" name="state" placeholder="Enter your state" required>
                         </div>
-
                         <div class="form-field">
                             <label for="postal-code">Pin Code</label>
                             <input type="text" id="postal-code" name="postal-code" placeholder="Enter postal code" required>
@@ -327,7 +293,6 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
                             <div id="card-errors" role="alert"></div>
                             <button type="button" id="stripe-submit-btn" class="payments_buttons">Pay Now with Stripe</button>
                         </div>
-
                         <label class="payment-choice">
                             <input type="radio" name="payment-method" value="wallet" onclick="showPaymentOption('wallet')"> Wallet
                         </label>
@@ -341,13 +306,11 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
                                 Pay with Wallet
                             </button>
                         </div>
-
                         <label class="payment-choice">
                             <input type="radio" name="payment-method" value="cod" onclick="showPaymentOption('cod')"> Cash on Delivery (COD)
                         </label>
                         <div class="payment-method" id="cod">
                             <h3>Cash on Delivery (COD)</h3>
-                            <p>Pay in cash when your order is delivered to your address.</p>
                             <button type="submit" name="cod-btn" class="payments_buttons">Confirm Order</button>
                         </div>
                     </div>
@@ -383,7 +346,6 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
                             <p class="empty-order">Your cart is empty.</p>
                         <?php endif; ?>
                     </div>
-
                     <div class="payment-total">
                         <span>Total Amount</span>
                         <strong>₹ <?php echo number_format((float) $pay_grand_total, 2); ?></strong>
@@ -393,8 +355,26 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
         </form>
     </div>
 
+    <div id="global-toast-container"></div>
+
     <?php require_once '../stripe_config.php'; ?>
     <script>
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('global-toast-container');
+            const toast = document.createElement('div');
+            toast.className = `global-toast toast-${type}`;
+            let icon = type === 'success' ? 'fa-check-circle' : 'fa-times-circle';
+            toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3500);
+        }
+
+        <?php if (isset($_SESSION['toast-msg'])): ?>
+            showToast("<?php echo addslashes($_SESSION['toast-msg']); ?>", "<?php echo $_SESSION['toast-type'] ?? 'success'; ?>");
+            <?php unset($_SESSION['toast-msg'], $_SESSION['toast-type']); ?>
+        <?php endif; ?>
+
         const stripe = Stripe('<?php echo STRIPE_PUBLISHABLE_KEY; ?>');
         const elements = stripe.elements();
         const rootStyles = getComputedStyle(document.documentElement);
@@ -409,32 +389,24 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
                 fontSize: '16px',
                 '::placeholder': { color: brandColor }
             },
-            invalid: {
-                color: '#fa755a',
-                iconColor: '#fa755a'
-            }
+            invalid: { color: '#fa755a', iconColor: '#fa755a' }
         };
 
         const card = elements.create('card', {style: style});
         card.mount('#card-element');
 
         card.on('change', function(event) {
-            const displayError = document.getElementById('card-errors');
-            displayError.textContent = event.error ? event.error.message : '';
+            document.getElementById('card-errors').textContent = event.error ? event.error.message : '';
         });
 
         function hideAllPaymentOptions() {
-            document.querySelectorAll('.payment-method').forEach(function (el) {
-                el.classList.remove('active');
-            });
+            document.querySelectorAll('.payment-method').forEach(el => el.classList.remove('active'));
         }
 
         function showPaymentOption(option) {
             hideAllPaymentOptions();
             const selectedOption = document.getElementById(option);
-            if (selectedOption) {
-                selectedOption.classList.add('active');
-            }
+            if (selectedOption) selectedOption.classList.add('active');
         }
 
         document.getElementById('stripe-submit-btn').addEventListener('click', async function() {
@@ -446,13 +418,10 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
             const state = document.getElementById('state').value;
             const postalCode = document.getElementById('postal-code').value;
 
-            if (!fullName || !contactNumber || !address || !city || !state || !postalCode) {
-                alert('Please fill in all delivery details first.');
-                return;
-            }
+            if (!fullName) { showToast('Please fill in all details.', 'error'); return; }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.innerHTML = 'Processing...';
 
             try {
                 const response = await fetch('create_payment_intent.php', {
@@ -463,42 +432,29 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
                 const data = await response.json();
 
                 if (data.error) {
-                    alert(data.error);
+                    showToast(data.error, 'error');
                     btn.disabled = false;
                     btn.innerHTML = 'Pay Now with Stripe';
                     return;
                 }
 
-                const result = await stripe.confirmCardPayment(data.client_secret, {
-                    payment_method: {
-                        card: card,
-                        billing_details: {
-                            name: fullName,
-                            phone: contactNumber,
-                            address: {
-                                line1: address,
-                                city: city,
-                                state: state,
-                                postal_code: postalCode
-                            }
-                        }
-                    }
+                const { paymentIntent, error } = await stripe.confirmCardPayment(data.client_secret, {
+                    payment_method: { card: card, billing_details: { name: fullName } }
                 });
 
-                if (result.error) {
-                    document.getElementById('card-errors').textContent = result.error.message;
+                if (error) {
+                    document.getElementById('card-errors').textContent = error.message;
                     btn.disabled = false;
                     btn.innerHTML = 'Pay Now with Stripe';
                     return;
                 }
 
-                if (result.paymentIntent.status === 'succeeded') {
+                if (paymentIntent.status === 'succeeded') {
                     const form = document.createElement('form');
                     form.method = 'POST';
                     form.action = 'handle_stripe_payment.php';
-
                     const fields = {
-                        'payment_intent_id': result.paymentIntent.id,
+                        'payment_intent_id': paymentIntent.id,
                         'full-name': fullName,
                         'contact-number': contactNumber,
                         'address': address,
@@ -507,7 +463,6 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
                         'postal-code': postalCode,
                         'product_id': '<?php echo $product_id ?: ""; ?>'
                     };
-
                     for (const key in fields) {
                         const input = document.createElement('input');
                         input.type = 'hidden';
@@ -515,13 +470,12 @@ $wallet_can_pay = $wallet_balance >= $pay_grand_total && $pay_grand_total > 0;
                         input.value = fields[key];
                         form.appendChild(input);
                     }
-
                     document.body.appendChild(form);
                     form.submit();
                 }
             } catch (error) {
                 console.error(error);
-                alert('An error occurred. Please try again.');
+                showToast('An error occurred. Please try again.', 'error');
                 btn.disabled = false;
                 btn.innerHTML = 'Pay Now with Stripe';
             }

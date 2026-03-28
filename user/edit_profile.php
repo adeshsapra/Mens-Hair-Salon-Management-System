@@ -42,7 +42,7 @@ if (isset($_POST['user-update'])) {
         $update_query = "UPDATE user_reg SET " . implode(', ', $update_parts) . " WHERE id='$update_id'";
         
         if ($con->query($update_query) === TRUE) {
-            echo "<script>alert('Profile updated successfully!'); window.location.href='settings.php';</script>";
+            header('Location:settings.php?toast=success&msg=Profile+updated+successfully!'); exit;
         } else {
             $error = "Error updating: " . $con->error;
         }
@@ -130,3 +130,4 @@ function previewImage(input) {
     }
 }
 </script>
+
