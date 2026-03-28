@@ -20,7 +20,7 @@ if(isset($_POST['royal-btn'])){
         if($insert)
         {
             $confirm[]='Add Sucessfully..!';
-            header("Location:membership_manage.php");
+            header("Location:membership_manage.php?toast=success&msg=Membership+updated+successfully!");
         }
         else{
             $message[]='Could Not Add Successfully..!';
@@ -49,7 +49,7 @@ if(isset($_POST['classic-btn'])){
         if($insert)
         {
             $confirm[]='Add Sucessfully..!';
-            header("Location:membership_manage.php");
+            header("Location:membership_manage.php?toast=success&msg=Membership+updated+successfully!");
         }
         else{
             $message[]='Could Not Add Successfully..!';
@@ -80,7 +80,7 @@ if(isset($_POST['standard-btn'])){
         if($insert)
         {
             $confirm[]='Add Sucessfully..!';
-            header("Location:membership_manage.php");
+            header("Location:membership_manage.php?toast=success&msg=Membership+updated+successfully!");
         }
         else{
             $message[]='Could Not Add Successfully..!';
@@ -326,3 +326,4 @@ $con->close();
     </script>
 </body>
 </html>
+

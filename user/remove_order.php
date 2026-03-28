@@ -7,7 +7,7 @@ if (isset($_POST['id'])) {
     $delete_query = "DELETE FROM product_sales WHERE s_id = '$order_id' AND s_status = 'Cancelled'";
     
     if (mysqli_query($con, $delete_query)) {
-        header("Location:order.php");
+        header("Location:order.php?toast=success&msg=Order+history+cleared!");
         exit();
     } else {
         echo "Error: " . mysqli_error($con);
@@ -16,3 +16,4 @@ if (isset($_POST['id'])) {
     echo "Invalid request.";
 }
 ?>
+

@@ -9,8 +9,9 @@ $product_id = isset($_POST['id']) ? intval($_POST['id']) : null;
 $pay_grand_total = 0;
 
 function getDiscountedPrice($price, $discountPercent) {
+    if (empty($price)) return 0;
     $price = (float) $price;
-    $discountPercent = max(0, min(100, (float) $discountPercent));
+    $discountPercent = max(0, min(100, (float) ($discountPercent ?? 0)));
     return round($price - (($price * $discountPercent) / 100), 2);
 }
 

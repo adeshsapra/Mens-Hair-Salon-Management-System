@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add'])) {
         $sql = "INSERT INTO admin (admin_email, admin_password, admin_name) VALUES ('$email', '$newPassword','$name')";
         if (mysqli_query($con, $sql)) {
             echo "New admin added successfully";
-            header('Location: manage_admin.php');
+            header("Location:manage_admin.php?toast=success&msg=New+admin+added+successfully!");
         } else {
             echo "Error: " . $sql . "<br>" . mysqli_error($con);
         }
@@ -50,3 +50,5 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add'])) {
         </form>
     </div>
 </div>
+
+

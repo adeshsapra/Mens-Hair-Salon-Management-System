@@ -11,7 +11,7 @@ $row = mysqli_fetch_assoc($all_product);
 
 if(isset($_POST['delete'])){
     mysqli_query($con, "DELETE FROM products WHERE p_id = $id");
-    header("Location:products.php");
+    header("Location:products.php?toast=success&msg=Product+deleted+successfully!");
     $con->close();
     exit();
 }
@@ -57,3 +57,5 @@ if(isset($_POST['delete'])){
     </div>
 </body>
 </html>
+
+

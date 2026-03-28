@@ -24,7 +24,7 @@ if (isset($_GET['id'])) {
         $can_cancel = in_array($current_status, ['pending', 'confirmed', 'processing'], true);
 
         if (!$can_cancel) {
-            header("Location: order.php?message=This order cannot be cancelled now.");
+            header("Location: order.php?toast=error&msg=This+order+cannot+be+cancelled+now.");
             exit;
         }
 
@@ -34,7 +34,7 @@ if (isset($_GET['id'])) {
         // Prevent duplicate refund entries for the same order
         $existing_refund = mysqli_query($con, "SELECT id FROM wallet_transactions WHERE user_id = '$user_id' AND sale_id = '$sale_id' LIMIT 1");
         if ($existing_refund && mysqli_num_rows($existing_refund) > 0) {
-            header("Location: order.php?message=Order already cancelled and refunded.");
+            header("Location: order.php?toast=info&msg=Order+already+cancelled+and+refunded.");
             exit;
         }
 
@@ -49,7 +49,7 @@ if (isset($_GET['id'])) {
             $cancel_order_query = "UPDATE product_sales SET s_status = 'cancelled' WHERE s_id = '$order_id' AND id = '$user_id'";
             if(mysqli_query($con, $cancel_order_query)) {
                 mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ('$order_id', 'cancelled', '$currentDate', '$currentTime')");
-                header("Location: order.php?message=Order cancelled successfully. Refunded to wallet.");
+                header("Location: order.php?toast=success&msg=Order+cancelled+successfully.+Refunded+to+wallet.");
                 exit;
             } else {
                 die("Error updating order status: " . mysqli_error($con));
@@ -61,6 +61,7 @@ if (isset($_GET['id'])) {
         die("Order not found or unauthorized. Order ID: " . $order_id . ", User ID: " . $user_id . ". Please check if this order belongs to you.");
     }
 } else {
-    header("Location: order.php");
+    header("Location: order.php?toast=error&msg=Action+failed.");
 }
 ?>
+

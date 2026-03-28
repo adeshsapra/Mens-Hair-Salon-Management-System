@@ -19,7 +19,7 @@ if ($update_history_result) {
     $update_appointments_result = mysqli_query($con, $update_appointments_query);
 
     if ($update_appointments_result) {
-        header('Location: appointments_manage.php');
+        header("Location:appointments_manage.php?toast=success&msg=Appointment+declined+successfully!");
     } else {
         echo "Error updating appointments table: " . mysqli_error($con);
     }
@@ -29,3 +29,5 @@ if ($update_history_result) {
 
 mysqli_close($con);
 ?>
+
+

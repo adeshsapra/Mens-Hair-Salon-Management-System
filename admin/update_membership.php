@@ -18,7 +18,7 @@ if(isset($_POST['royal-btn'])) {
 
         if ($con->query($update_query) === TRUE) {
             $confirm[]= "Product updated successfully!";
-            header("Location:membership_manage.php");
+            header("Location:membership_manage.php?toast=success&msg=Membership+details+updated+successfully!");
         } else {
             echo "Error updating product: " . $con->error;
         }
@@ -38,7 +38,7 @@ if(isset($_POST['classic-btn'])) {
 
         if ($con->query($update_query) === TRUE) {
             $confirm[]= "Product updated successfully!";
-            header("Location:membership_manage.php");
+            header("Location:membership_manage.php?toast=success&msg=Membership+details+updated+successfully!");
         } else {
             echo "Error updating product: " . $con->error;
         }
@@ -58,7 +58,7 @@ if(isset($_POST['standard-btn'])) {
 
         if ($con->query($update_query) === TRUE) {
             $confirm[]= "Product updated successfully!";
-            header("Location:membership_manage.php");
+            header("Location:membership_manage.php?toast=success&msg=Membership+details+updated+successfully!");
         } else {
             echo "Error updating product: " . $con->error;
         }
@@ -133,3 +133,4 @@ if(isset($_POST['standard-btn'])) {
 </div>
 </body>
 </html>
+

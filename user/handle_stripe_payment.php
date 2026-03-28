@@ -26,8 +26,9 @@ $pay_grand_total = 0;
 $quantityUpdateQueries = [];
 
 function getDiscountedPrice($price, $discountPercent) {
+    if (empty($price)) return 0;
     $price = (float) $price;
-    $discountPercent = max(0, min(100, (float) $discountPercent));
+    $discountPercent = max(0, min(100, (float) ($discountPercent ?? 0)));
     return round($price - (($price * $discountPercent) / 100), 2);
 }
 
@@ -61,6 +62,8 @@ if ($product_id) {
                     mysqli_query($con, "UPDATE products SET p_quantity = '$new_quantity' WHERE p_id = '$product_id'");
                 }
                 mysqli_query($con, "DELETE FROM product_cart WHERE id='$user_id' AND p_id='$product_id'");
+                $_SESSION['toast-type'] = 'success';
+                $_SESSION['toast-msg'] = 'Payment successful! Order placed.';
                 header('Location:thankyou_order.php');
                 exit();
             }
@@ -76,16 +79,16 @@ if ($product_id) {
     $insertSaleSuccess = true;
     $s_ids = [];
 
-    while ($fetch_pay_product = mysqli_fetch_assoc($all_products)) {
+    while ($p = mysqli_fetch_assoc($all_products)) {
         $insertSale = mysqli_query($con, "
             INSERT INTO product_sales(id, s_img, s_name, s_price, s_size, s_quantity, s_total, s_grand_total, s_date, s_status, s_time)
-            VALUES ('$user_id', '{$fetch_pay_product['p_img']}', '{$fetch_pay_product['p_name']}', '{$fetch_pay_product['p_price']}', '{$fetch_pay_product['p_size']}', '{$fetch_pay_product['c_quantity']}', '{$fetch_pay_product['c_total']}', '{$pay_grand_total}', '$currentDate', 'confirmed', '$currentTime')");
+            VALUES ('$user_id', '{$p['p_img']}', '{$p['p_name']}', '{$p['p_price']}', '{$p['p_size']}', '{$p['c_quantity']}', '{$p['c_total']}', '{$pay_grand_total}', '$currentDate', 'confirmed', '$currentTime')");
 
         if ($insertSale) {
             $s_ids[] = mysqli_insert_id($con);
-            $new_quantity = $fetch_pay_product['p_quantity'] - $fetch_pay_product['c_quantity'];
+            $new_quantity = $p['p_quantity'] - $p['c_quantity'];
             if ($new_quantity >= 0) {
-                $quantityUpdateQueries[] = "UPDATE products SET p_quantity = '$new_quantity' WHERE p_id = '{$fetch_pay_product['p_id']}'";
+                $quantityUpdateQueries[] = "UPDATE products SET p_quantity = '$new_quantity' WHERE p_id = '{$p['p_id']}'";
             }
         } else {
             $insertSaleSuccess = false;
@@ -93,10 +96,6 @@ if ($product_id) {
     }
 
     if ($insertSaleSuccess && !empty($s_ids)) {
-        // We use the last sale ID as a reference or we might need a better way to link multiple sales to one payment.
-        // The current schema seems to link 1 payment to 1 sale via s_id.
-        // I'll use the first one or create a comma separated list if s_id type allows (int usually).
-        // Given the schema, I'll just use the first s_id for the payment record.
         $s_id = $s_ids[0]; 
         
         $insertPayment = mysqli_query($con, "
@@ -109,6 +108,8 @@ if ($product_id) {
                 mysqli_query($con, $query);
             }
             mysqli_query($con, "DELETE FROM product_cart WHERE id='$user_id'");
+            $_SESSION['toast-type'] = 'success';
+            $_SESSION['toast-msg'] = 'Payment successful! Order placed.';
             header('Location:thankyou_order.php');
             exit();
         }
@@ -116,5 +117,8 @@ if ($product_id) {
 }
 
 // If something fails
-echo "Error processing payment. Please contact support.";
+$_SESSION['toast-type'] = 'error';
+$_SESSION['toast-msg'] = 'Error processing payment. Please contact support.';
+header('Location: checkout.php');
+exit();
 ?>

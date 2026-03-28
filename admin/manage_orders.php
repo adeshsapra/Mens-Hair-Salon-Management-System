@@ -35,9 +35,11 @@ if (isset($_GET['action']) && isset($_GET['s_id'])) {
         }
         
         if ($update) {
-            echo "<script>alert('Order " . ucfirst($new_status) . " successfully!'); window.location.href='manage_orders.php';</script>";
+            header("Location: manage_orders.php?toast=success&msg=" . urlencode('Order ' . ucfirst($new_status) . ' successfully!'));
+            exit();
         } else {
-            echo "<script>alert('Failed to update order status.');</script>";
+            header("Location: manage_orders.php?toast=error&msg=" . urlencode('Failed to update order status.'));
+            exit();
         }
     }
 }

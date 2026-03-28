@@ -37,7 +37,7 @@ if(isset($_POST['add-product'])){
             {
                 move_uploaded_file($p_image_tmp,$p_image_folder);
                 $confirm[]='New Product Add Sucessfully..!';
-                header("Location:products.php");
+                header("Location:products.php?toast=success&msg=New+product+added+successfully!");
             }
             else{
                 $confirm[]='Could Not Add The Product..!';
@@ -131,4 +131,6 @@ if(isset($_POST['add-product'])){
     document.getElementById('product-discount').addEventListener('input', updateFinalPricePreview);
     updateFinalPricePreview();
 </script>
+
+
 

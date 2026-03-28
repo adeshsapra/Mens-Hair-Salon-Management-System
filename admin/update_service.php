@@ -18,7 +18,7 @@ if(isset($_POST['haircut-btn'])) {
 
         if ($con->query($update_query) === TRUE) {
             $confirm[]= "Product updated successfully!";
-            header("Location:service_manage.php");
+            header("Location:service_manage.php?toast=success&msg=Service+updated+successfully!");
         } else {
             echo "Error updating product: " . $con->error;
         }
@@ -39,7 +39,7 @@ if(isset($_POST['beard-btn'])) {
 
         if ($con->query($update_query) === TRUE) {
             $confirm[]= "Product updated successfully!";
-            header("Location:service_manage.php");
+            header("Location:service_manage.php?toast=success&msg=Service+updated+successfully!");
         } else {
             echo "Error updating product: " . $con->error;
         }
@@ -60,7 +60,7 @@ if(isset($_POST['skin-btn'])) {
 
         if ($con->query($update_query) === TRUE) {
             $confirm[]= "Product updated successfully!";
-            header("Location:service_manage.php");
+            header("Location:service_manage.php?toast=success&msg=Service+updated+successfully!");
         } else {
             echo "Error updating product: " . $con->error;
         }
@@ -83,7 +83,7 @@ if(isset($_POST['spa-btn'])) {
 
         if ($con->query($update_query) === TRUE) {
             $confirm[]= "Product updated successfully!";
-            header("Location:service_manage.php");
+            header("Location:service_manage.php?toast=success&msg=Service+updated+successfully!");
         } else {
             echo "Error updating product: " . $con->error;
         }
