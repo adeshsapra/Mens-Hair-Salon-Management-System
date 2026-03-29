@@ -6,36 +6,6 @@
     <title>Product Details</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        .cart-icon {
-            position: absolute;
-            right: 50px;
-            font-size: 24px;
-            color: #000;
-            display: flex;
-            align-items: center;
-            cursor: pointer; /* Change cursor to pointer */
-        }
-        .cart-count {
-            position: absolute;
-            left: 20px;
-            bottom: 20px;
-            background: red;
-            color: white;
-            border-radius: 50%;
-            padding: 0 5px;
-            margin-left: 5px;
-            font-size: 12px;
-        }
-        .message {
-            color: red;
-            font-weight: bold;
-        }
-        .confirm {
-            color: green;
-            font-weight: bold;
-        }
-    </style>
 </head>
 <body>
     <!-- header -->
@@ -123,7 +93,15 @@
             }
             ?>
 
+                <div class="product-display-media">
                 <img src="upload_product_photos/<?php echo $product["p_img"]; ?>" alt="Product Image" class="product-image">
+                </div>
+                <a href="<?php echo $user_id ? 'user/products_user.php' : 'javascript:void(0);'; ?>"
+                   class="cart-icon product-display-cart"
+                   onclick="<?php if (!$user_id) echo 'alert(\'Sorry..! You are not logged in.\');'; ?>">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-count"><?php echo isset($item_count) ? $item_count : 0; ?></span>
+                </a>
                 <div class="product-details">
                     <p class="product-name"><?php echo $product["p_name"]; ?></p>
                     <p class="product-price">
@@ -149,12 +127,12 @@
                         <p><?php echo $product["p_ingred"]; ?></p>
                     </div>
                     <div class="product_display_button">
-                        <a href="eshop.php" class="continue-shopping">Continue E-shop</a>
-                        <form action="" method="post" style="display:inline;">
-                            <button type="submit" name="add_to_cart" class="view-cart">Add to Cart</button>
+                        <a href="eshop.php" class="continue-shopping product-cta">Continue E-shop</a>
+                        <form action="" method="post" class="product-display-form">
+                            <button type="submit" name="add_to_cart" class="view-cart product-cta">Add to Cart</button>
                         </form>
-                        <form action="" method="post" style="display:inline;">
-                            <button type="submit" name="buy_now" class="view-cart">Buy Now</button>
+                        <form action="" method="post" class="product-display-form">
+                            <button type="submit" name="buy_now" class="view-cart product-cta">Buy Now</button>
                         </form>
                     </div>
                     <?php
@@ -172,11 +150,6 @@
                     }
                     ?>
                 </div>
-                <a href="<?php echo $user_id ? 'user/products_user.php' : 'javascript:void(0);'; ?>" class="cart-icon" 
-                   onclick="<?php if (!$user_id) echo 'alert(\'Sorry..! You are not logged in.\');'; ?>">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span class="cart-count"><?php echo isset($item_count) ? $item_count : 0; ?></span>
-                </a>
             </div>
         </div>
     </div>
