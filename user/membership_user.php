@@ -1,69 +1,90 @@
-<?php 
+<?php
 include 'connect.php';
-include 'header.php'; 
+include 'header.php';
 
-$user_id = $_SESSION['user_id'];
+$user_id = (int) $_SESSION['user_id'];
 
-// Updated SQL query to include the status field
-$query = "
-    SELECT mp.membership_type,
-           rm.royal_desc,
-           cm.classic_desc,
-           sm.standard_desc,
-           mp.payment_date,
-           mp.status
-    FROM membership_payments mp
-    LEFT JOIN royal_membership rm ON rm.royal_plan = CASE WHEN mp.membership_type LIKE '%Yearly%' THEN 'yearly' ELSE 'monthly' END
-    LEFT JOIN classic_membership cm ON cm.classic_plan = CASE WHEN mp.membership_type LIKE '%Yearly%' THEN 'yearly' ELSE 'monthly' END
-    LEFT JOIN standard_membership sm ON sm.standard_plan = CASE WHEN mp.membership_type LIKE '%Yearly%' THEN 'yearly' ELSE 'monthly' END
-    WHERE id = $user_id
-";
+function membership_resolve_public_type(string $type): array
+{
+    $isYearly = stripos($type, 'Yearly') !== false || stripos($type, 'Annual') !== false;
+    $billing = $isYearly ? 'yearly' : 'monthly';
+    $pass = null;
+    if (stripos($type, 'Royal') !== false) {
+        $pass = 'royal';
+    } elseif (stripos($type, 'Classic') !== false) {
+        $pass = 'classic';
+    } elseif (stripos($type, 'Standard') !== false) {
+        $pass = 'standard';
+    }
+    return [$pass, $billing];
+}
 
-$result = $con->query($query);
+function membership_user_plan_label(string $pass, string $billing): string
+{
+    $name = $pass === 'royal' ? 'Royal' : ($pass === 'classic' ? 'Classic' : 'Standard');
+    $b = $billing === 'yearly' ? 'Yearly' : 'Monthly';
+    return $name . ' (' . $b . ')';
+}
+
+$pay_stmt = mysqli_prepare(
+    $con,
+    'SELECT membership_type, payment_date, status FROM membership_payments WHERE id = ? ORDER BY payment_date DESC'
+);
+mysqli_stmt_bind_param($pay_stmt, 'i', $user_id);
+mysqli_stmt_execute($pay_stmt);
+$pay_res = mysqli_stmt_get_result($pay_stmt);
+
+$groups = [];
+while ($row = mysqli_fetch_assoc($pay_res)) {
+    [$pass, $billing] = membership_resolve_public_type((string) $row['membership_type']);
+    if ($pass === null) {
+        continue;
+    }
+    $plan_name = membership_user_plan_label($pass, $billing);
+    $ts = strtotime($row['payment_date']);
+    if (!isset($groups[$plan_name]) || $ts > $groups[$plan_name]['ts']) {
+        $groups[$plan_name] = [
+            'row' => $row,
+            'pass' => $pass,
+            'billing' => $billing,
+            'ts' => $ts,
+        ];
+    }
+}
+mysqli_stmt_close($pay_stmt);
 
 $descriptions = [];
-
-while ($membership_fetch_row = $result->fetch_assoc()) {
-    $plan_name = '';
-    $description = '';
-    $payment_date = new DateTime($membership_fetch_row['payment_date']);
-
-    if (strpos($membership_fetch_row['membership_type'], 'Royal') !== false) {
-        $plan_name = strpos($membership_fetch_row['membership_type'], 'Yearly') !== false ? 'Royal (Yearly)' : 'Royal (Monthly)';
-        $description = $membership_fetch_row['royal_desc'];
-    } elseif (strpos($membership_fetch_row['membership_type'], 'Classic') !== false) {
-        $plan_name = strpos($membership_fetch_row['membership_type'], 'Yearly') !== false ? 'Classic (Yearly)' : 'Classic (Monthly)';
-        $description = $membership_fetch_row['classic_desc'];
-    } elseif (strpos($membership_fetch_row['membership_type'], 'Standard') !== false) {
-        $plan_name = strpos($membership_fetch_row['membership_type'], 'Yearly') !== false ? 'Standard (Yearly)' : 'Standard (Monthly)';
-        $description = $membership_fetch_row['standard_desc'];
+foreach ($groups as $plan_name => $g) {
+    $feature_list = [];
+    $feat_stmt = mysqli_prepare(
+        $con,
+        'SELECT features_json FROM membership_plans WHERE pass_key = ? AND billing_plan = ? LIMIT 1'
+    );
+    mysqli_stmt_bind_param($feat_stmt, 'ss', $g['pass'], $g['billing']);
+    mysqli_stmt_execute($feat_stmt);
+    $feat_res = mysqli_stmt_get_result($feat_stmt);
+    if ($feat_row = mysqli_fetch_assoc($feat_res)) {
+        $decoded = json_decode($feat_row['features_json'], true);
+        $feature_list = is_array($decoded) ? $decoded : [];
     }
+    mysqli_stmt_close($feat_stmt);
 
+    $payment_date = new DateTime($g['row']['payment_date']);
     $end_date = clone $payment_date;
-    if (strpos($membership_fetch_row['membership_type'], 'Yearly') !== false) {
+    if ($g['billing'] === 'yearly') {
         $end_date->modify('+1 year');
-    } elseif (strpos($membership_fetch_row['membership_type'], 'Monthly') !== false) {
+    } else {
         $end_date->modify('+1 month');
     }
-
     $now = new DateTime();
     $remaining_days = max(0, $now < $end_date ? $now->diff($end_date)->days : 0);
 
-    // Capture the status from the database
-    $status = $membership_fetch_row['status'];
-
-    if (!isset($descriptions[$plan_name])) {
-        $descriptions[$plan_name] = [
-            'descriptions' => [],
-            'remaining_days' => $remaining_days,
-            'end_date' => $end_date->format('Y-m-d'),
-            'status' => $status // Store the status here
-        ];
-    }
-
-    if (!in_array($description, $descriptions[$plan_name]['descriptions'])) {
-        $descriptions[$plan_name]['descriptions'][] = $description;
-    }
+    $descriptions[$plan_name] = [
+        'descriptions' => $feature_list,
+        'remaining_days' => $remaining_days,
+        'end_date' => $end_date->format('Y-m-d'),
+        'status' => $g['row']['status'],
+    ];
 }
 ?>
 
@@ -114,7 +135,7 @@ while ($membership_fetch_row = $result->fetch_assoc()) {
                             echo "</div>";
                             
                             echo "<div style='background: var(--bg1); color: var(--brand); padding: 12px; border-radius: 8px; text-align: center; font-weight: 500;'>";
-                            echo "<i class='fas fa-clock'></i> <strong>" . htmlspecialchars($data['remaining_days']) . " days remaining</strong>";
+                            echo "<i class='fas fa-clock'></i> <strong>" . htmlspecialchars((string) $data['remaining_days']) . " days remaining</strong>";
                             echo "</div>";
                         } else {
                             echo "<div style='background: #fce8e6; color: #d93025; padding: 16px; border-radius: 12px; text-align: center;'>";

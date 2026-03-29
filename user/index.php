@@ -50,7 +50,7 @@ include 'connect.php';
             <h2 style="font-size: 18px; color: #555; margin-bottom: 12px; font-weight: 600;"><i class="fas fa-gem" style="color: var(--brand); margin-right: 10px;"></i> Membership</h2>
             <?php
             if (isset($user_id)) {
-                $membership_query = "SELECT membership_type, status FROM membership_payments WHERE id = '$user_id' AND status='Active' LIMIT 1";
+                $membership_query = "SELECT membership_type, status FROM membership_payments WHERE id = '$user_id' AND LOWER(TRIM(status)) = 'active' ORDER BY payment_date DESC LIMIT 1";
                 $membership_result = mysqli_query($con, $membership_query);
                 $membership_row = mysqli_fetch_assoc($membership_result);
 

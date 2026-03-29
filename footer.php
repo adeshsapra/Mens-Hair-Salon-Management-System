@@ -1,17 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/style.css">
-    <title>ClassyCut Footer</title>
-
-    <!-- font awesome -->
-     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-     <!-- box link -->
-     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-</head>
-<body>
 <!-- footer sections -->
 
 <footer>
@@ -32,10 +18,11 @@
                     <div class="f-section" id="links">
                         <h3>Links</h3>
                             <div class="f-menu">
-                                <a href="about.php">About</a>
+                                <a href="index.php#about">About</a>
                                 <a href="service.php">Services</a>
                                 <a href="eshop.php">E - shop</a>
                                 <a href="membership.php">Membership</a>
+                                <a href="index.php#contact">Contact</a>
                             </div>
                     </div>
 
@@ -203,6 +190,5 @@ document.addEventListener('click', function(e) {
     }
 }, true);
 </script>
-<script src="js/script.js"></script>
 </body>
 </html>

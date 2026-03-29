@@ -32,7 +32,7 @@ $all_product= $con->query($query);
         <img src="photos/about-img1.jpeg" alt="" class="img">
         <div class="img-content">
             <h2>Men's Grooming Products</h2>
-            <div clsas="menu">
+            <div class="menu">
                 <a href="index.php">HOME</a> / <span>Our E-shop Products</span>
             </div>
            

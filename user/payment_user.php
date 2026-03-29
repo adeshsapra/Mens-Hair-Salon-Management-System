@@ -98,9 +98,10 @@ $membership_pay_fetch = mysqli_query($con, "
                     $membership_counter = 1;
                     while($membership_row = mysqli_fetch_assoc($membership_pay_fetch)){
                         $status = $membership_row["status"];
-                        if ($status == 'Pending') {
+                        $statusNorm = strtolower(trim((string) $status));
+                        if ($statusNorm === 'pending') {
                             $color = '#b06000'; $bg = '#fef7e0'; $icon = 'fa-hourglass-half';
-                        } elseif ($status == 'Active' || $status == 'Success') {
+                        } elseif ($statusNorm === 'active' || $statusNorm === 'success') {
                             $color = '#1e8e3e'; $bg = '#e6f4ea'; $icon = 'fa-check-circle';
                         } else {
                             $color = '#d93025'; $bg = '#fce8e6'; $icon = 'fa-times-circle';
