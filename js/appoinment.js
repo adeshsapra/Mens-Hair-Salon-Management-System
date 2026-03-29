@@ -1,3 +1,20 @@
+function populateServiceTypes(category, preselectValue) {
+    const serviceTypeSelect = document.getElementById('service-type');
+    if (!serviceTypeSelect) return;
+    serviceTypeSelect.innerHTML = '<option value="">Select a service type</option>';
+    if (category && serviceTypes[category]) {
+        serviceTypes[category].forEach(function (service) {
+            const option = document.createElement('option');
+            option.value = service.value;
+            option.textContent = service.text;
+            if (preselectValue && service.value === preselectValue) {
+                option.selected = true;
+            }
+            serviceTypeSelect.appendChild(option);
+        });
+    }
+}
+
 const serviceTypes = {
     hair: [
         { value: 'hair_crop_wash', text: 'Hair Crop With Wash' },
@@ -50,19 +67,23 @@ const serviceTypes = {
     ]
 };
 
-const service=document.getElementById('service-category');
+function initAppointmentForm() {
+    const service = document.getElementById('service-category');
+    if (!service) return;
 
-service.addEventListener('change', function() {
-    const selectedCategory = this.value;
-    const serviceTypeSelect = document.getElementById('service-type');
-    serviceTypeSelect.innerHTML = '<option value="">Select a Service Type</option>';
+    service.addEventListener('change', function () {
+        populateServiceTypes(this.value, '');
+    });
 
-    if (selectedCategory) {
-        serviceTypes[selectedCategory].forEach(function(service) {
-            const option = document.createElement('option');
-            option.value = service.value;
-            option.text = service.text;
-            serviceTypeSelect.appendChild(option);
-        });
+    const typeSel = document.getElementById('service-type');
+    const pre = typeSel && typeSel.dataset.preselect ? typeSel.dataset.preselect : '';
+    if (service.value) {
+        populateServiceTypes(service.value, pre);
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAppointmentForm);
+} else {
+    initAppointmentForm();
+}

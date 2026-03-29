@@ -1,111 +1,87 @@
 <?php
-    include('connect.php');
-    session_start();
+include('connect.php');
+session_start();
 
-    // royal
-$royal="SELECT * FROM royal_membership";
-$royal_data= $con->query($royal);
-
-$royal_yearlyPlans = [];
-$royal_monthlyPlans = [];
-
-$royal_latestYearlyPrice = 0;
-$royal_latestMonthlyPrice = 0;
-
-while ($row = mysqli_fetch_assoc($royal_data)) {
-    if ($row["royal_plan"] == 'yearly') {
-        $royal_yearlyPlans[] = $row["royal_desc"];
-
-        if ($row["royal_price"] > $royal_latestYearlyPrice) {
-            $royal_latestYearlyPrice = $row["royal_price"];
-        }
-    } elseif ($row["royal_plan"] == 'monthly') {
-        $royal_monthlyPlans[] = $row["royal_desc"];
-
-        if ($row["royal_price"] > $royal_latestMonthlyPrice) {
-            $royal_latestMonthlyPrice = $row["royal_price"];
+if ($con) {
+    $tbl = mysqli_query($con, "SHOW TABLES LIKE 'membership_plans'");
+    if ($tbl && mysqli_num_rows($tbl) > 0) {
+        $fc = mysqli_query($con, "SHOW COLUMNS FROM membership_plans LIKE 'is_featured'");
+        if ($fc && mysqli_num_rows($fc) === 0) {
+            mysqli_query(
+                $con,
+                'ALTER TABLE membership_plans ADD COLUMN is_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER features_json'
+            );
         }
     }
 }
 
-
-    // classic
-    $classic="SELECT * FROM classic_membership";
-    $classic_data= $con->query($classic);
-    
-    $classic_yearlyPlans = [];
-    $classic_monthlyPlans = [];
-    
-    $classic_latestYearlyPrice = 0;
-    $classic_latestMonthlyPrice = 0;
-    
-    while ($row = mysqli_fetch_assoc($classic_data)) {
-        if ($row["classic_plan"] == 'yearly') {
-            $classic_yearlyPlans[] = $row["classic_desc"];
-    
-            if ($row["classic_price"] > $classic_latestYearlyPrice) {
-                $classic_latestYearlyPrice = $row["classic_price"];
-            }
-        } elseif ($row["classic_plan"] == 'monthly') {
-            $classic_monthlyPlans[] = $row["classic_desc"];
-    
-            if ($row["classic_price"] > $classic_latestMonthlyPrice) {
-                $classic_latestMonthlyPrice = $row["classic_price"];
-            }
-        }
+function membership_public_default_plans(): array
+{
+    $keys = ['royal', 'classic', 'standard'];
+    $names = ['Royal Pass', 'Classic Pass', 'Standard Pass'];
+    $out = [];
+    foreach ($keys as $i => $pk) {
+        $out[$pk] = [
+            'yearly' => ['features' => [], 'price' => 0, 'display_name' => $names[$i], 'is_featured' => false],
+            'monthly' => ['features' => [], 'price' => 0, 'display_name' => $names[$i], 'is_featured' => false],
+        ];
     }
-
-    
-    
-    // standard
-$standard="SELECT * FROM standard_membership";
-$standard_data= $con->query($standard);
-
-$standard_yearlyPlans = [];
-$standard_monthlyPlans = [];
-
-$standard_latestYearlyPrice = 0;
-$standard_latestMonthlyPrice = 0;
-
-while ($row = mysqli_fetch_assoc($standard_data)) {
-    if ($row["standard_plan"] == 'yearly') {
-        $standard_yearlyPlans[] = $row["standard_desc"];
-
-        if ($row["standard_price"] > $standard_latestYearlyPrice) {
-            $standard_latestYearlyPrice = $row["standard_price"];
-        }
-    } elseif ($row["standard_plan"] == 'monthly') {
-        $standard_monthlyPlans[] = $row["standard_desc"];
-
-        if ($row["standard_price"] > $standard_latestMonthlyPrice) {
-            $standard_latestMonthlyPrice = $row["standard_price"];
-        }
-    }
+    return $out;
 }
 
+function membership_public_load_plans(mysqli $con): array
+{
+    $plans = membership_public_default_plans();
+    $res = mysqli_query($con, 'SELECT pass_key, billing_plan, display_name, price, features_json, is_featured FROM membership_plans');
+    if (!$res) {
+        return $plans;
+    }
+    while ($row = mysqli_fetch_assoc($res)) {
+        $pk = $row['pass_key'];
+        $bp = $row['billing_plan'];
+        if (!isset($plans[$pk][$bp])) {
+            continue;
+        }
+        $feat = json_decode($row['features_json'], true);
+        $plans[$pk][$bp]['features'] = is_array($feat) ? $feat : [];
+        $plans[$pk][$bp]['price'] = (int) $row['price'];
+        $dn = trim((string) $row['display_name']);
+        if ($dn !== '') {
+            $plans[$pk][$bp]['display_name'] = $dn;
+        }
+        $plans[$pk][$bp]['is_featured'] = (int) ($row['is_featured'] ?? 0) === 1;
+    }
+    return $plans;
+}
+
+$plans = membership_public_load_plans($con);
+$membership_pass_order = ['royal', 'classic', 'standard'];
+$membership_taglines = [
+    'royal' => 'Premium perks, priority booking & exclusive member treats',
+    'classic' => 'Balanced savings for your regular salon routine',
+    'standard' => 'Essential discounts and member-only access',
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$user_id) {
-        header("Location: login.php");
+    $user_id = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
+    if ($user_id <= 0) {
+        header('Location: login.php');
         exit();
     }
-    $membership_type = $_POST['membership_type']; 
-    $price = $_POST['price']; 
-    $card_name = $_POST['card-name'];
-    $phone_number = $_POST['phone-number'];
+    $membership_type = mysqli_real_escape_string($con, (string) ($_POST['membership_type'] ?? ''));
+    $price = mysqli_real_escape_string($con, (string) ($_POST['price'] ?? ''));
+    $card_name = mysqli_real_escape_string($con, (string) ($_POST['card-name'] ?? ''));
+    $phone_number = mysqli_real_escape_string($con, (string) ($_POST['phone-number'] ?? ''));
     $payment_date = date('Y-m-d H:i:s');
 
-    $user_id = $_SESSION['user_id'];
-
-    $query = "INSERT INTO membership_payments (id, membership_type, price, card_name, phone_number, payment_date) 
-              VALUES ('$user_id', '$membership_type', '$price', '$card_name', '$phone_number', '$payment_date')";
+    $query = "INSERT INTO membership_payments (id, membership_type, price, card_name, phone_number, payment_date, status) 
+              VALUES ('$user_id', '$membership_type', '$price', '$card_name', '$phone_number', '$payment_date', 'active')";
 
     if (mysqli_query($con, $query)) {
-        header("Location:thankyou_membership.php");
+        header('Location: thankyou_membership.php');
         exit();
-    } else {
-        echo "Error: " . mysqli_error($con);
     }
+    echo 'Error: ' . mysqli_error($con);
 }
 ?>
 
@@ -234,16 +210,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <header class="header">
 
-        <a href="#" class="logo">
-            <img src="photos/logoo.png" alt="">
+        <a href="index.php" class="logo">
+            <img src="photos/logoo.png" alt="ClassyCut">
         </a>
         <nav class="menu">
             <a href="index.php">Home</a>
-            <a href="about.php">About</a>
             <a href="service.php">Services</a>
             <a href="eshop.php">E-shop</a>
             <a href="membership.php">Membership</a>
-            <a href="contact.php">Contact</a>
             <!-- <a href="appointment.php">Appointment</a> -->
             <?php
             // session_start();
@@ -293,7 +267,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <img src="photos/about-img1.jpeg" alt="" class="img">
         <div class="img-content">
             <h2>VIP Exclusive Membership</h2>
-            <div clsas="menu">
+            <div class="menu">
                 <a href="index.php">HOME</a> / <span>Our Membership Page</span>
             </div>
            
@@ -306,141 +280,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <!-- membership section -->
 
-    <div class="membership-container">
-        <h1>Our Loyalty Plans</h1>
-        <div class="toggle-buttons">
-            <button id="yearly-btn" class="active">Yearly</button>
-            <button id="monthly-btn">Monthly</button>
+    <div class="membership-container membership-pricing">
+        <h1 class="membership-pricing-title">Choose your plan</h1>
+        <p class="membership-pricing-lead">Pick yearly or monthly billing. Change your mind anytime.</p>
+        <div class="membership-billing-toggle toggle-buttons" role="group" aria-label="Billing period">
+            <button type="button" id="yearly-btn" class="membership-toggle-btn active">Annual</button>
+            <button type="button" id="monthly-btn" class="membership-toggle-btn">Monthly</button>
         </div>
-        <div id="subscriptions">
-            <div id="yearly-cards" class="cards">
-                <div class="membership-card">
-                    <h2>Yearly Royal Pass</h2>
-                    
-                    <div class="card-content">
-                        <ul>
-                        <?php foreach ($royal_yearlyPlans as $desc): ?>
-                                <li><?php echo $desc; ?></li>
-                            <?php endforeach; ?>
-                            <!-- <li>50% off On Spa services</li>
-                            <li>Unlimited Hair Styling 2 Times a Month</li>
-                            <li>Unlimited Beards & Skin Services</li>
-                            <li>2 complimentary Hair Style per 3 month</li>
-                            <li>2 complimentary Child HairCut Per 3 Month</li>
-                            <li>Priority booking With Top stylists</li>
-                            <li>Free Product Gift & Samples</li> -->
-                        </ul>
+        <div id="subscriptions" class="membership-pricing-grid-wrap">
+            <?php
+            $membership_periods = [
+                'yearly' => ['pane_id' => 'yearly-cards', 'pane_class' => 'membership-pricing-cards', 'suffix' => 'year', 'period_label' => 'Yearly'],
+                'monthly' => ['pane_id' => 'monthly-cards', 'pane_class' => 'membership-pricing-cards membership-pricing-cards--hidden', 'suffix' => 'month', 'period_label' => 'Monthly'],
+            ];
+            foreach ($membership_periods as $period => $pane):
+                ?>
+            <div id="<?php echo htmlspecialchars($pane['pane_id']); ?>" class="<?php echo htmlspecialchars($pane['pane_class']); ?>">
+                <?php foreach ($membership_pass_order as $pk):
+                    $slot = $plans[$pk][$period];
+                    $checkout_name = $pane['period_label'] . ' ' . $slot['display_name'];
+                    $price = (int) $slot['price'];
+                    $featured = !empty($slot['is_featured']);
+                    $card_classes = 'membership-card' . ($featured ? ' membership-card--featured' : '');
+                    $tagline = $membership_taglines[$pk] ?? '';
+                    $cta_class = $featured ? 'membership-card-cta membership-card-cta--primary' : 'membership-card-cta membership-card-cta--ghost';
+                    ?>
+                <article class="<?php echo htmlspecialchars($card_classes); ?>">
+                    <?php if ($featured): ?>
+                        <span class="membership-card-badge"><span class="membership-card-badge-dot" aria-hidden="true"></span> Most popular</span>
+                    <?php endif; ?>
+                    <h2 class="membership-card-name"><?php echo htmlspecialchars($slot['display_name']); ?></h2>
+                    <div class="membership-card-price-row">
+                        <span class="membership-card-currency">₹</span>
+                        <span class="membership-card-amount-digits"><?php echo number_format($price, 0); ?></span>
+                        <span class="membership-card-period">/<?php echo htmlspecialchars($pane['suffix']); ?></span>
                     </div>
-                   <?php if ($royal_latestYearlyPrice > 0): ?>
-                    <p>₹ <?php echo $royal_latestYearlyPrice; ?>/year</p>
-                <?php endif; ?>
-                    <!-- <p>₹ 11999/year</p> -->
-                    <button>Subscribe</button>
-                </div>
-                <div class="membership-card">
-                    <h2>Yearly Classic Pass</h2>
-                    <div class="card-content">
-                        <ul>
-                            <!-- <li>30% off On Spa services</li>
-                            <li>Unlimited Beards & Skin Services</li>
-                            <li>1 complimentary Hair Style per month</li>
-                            <li>1 complimentary Child HairCut Per Month</li>
-                            <li>Priority booking Preferred Stylists</li>
-                            <li>Free Product Samples</li> -->
-                            <?php foreach ($classic_yearlyPlans as $desc): ?>
-                                <li><?php echo $desc; ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                    <?php if ($classic_latestYearlyPrice > 0): ?>
-                    <p>₹ <?php echo $classic_latestYearlyPrice; ?>/year</p>
-                <?php endif; ?>
-                    <!-- <p class="classic">₹ 7999/year</p> -->
-                    <button>Subscribe</button>
-                </div>
-                <div class="membership-card">
-                    <h2>Yearly Standard Pass</h2>
-                    <div class="card-content">
-                        <ul>
-                            <!-- <li>15% off On Spa services</li>
-                            <li>10% off On Hair Styling</li>
-                            <li>5% off On Beard services</li>
-                            <li>1 complimentary HairCut Per 3 Months</li>
-                            <li>Priority booking</li> -->
-                            <?php foreach ($standard_yearlyPlans as $desc): ?>
-                                <li><?php echo $desc; ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                    <?php if ($standard_latestYearlyPrice > 0): ?>
-                    <p>₹ <?php echo $standard_latestYearlyPrice; ?>/year</p>
-                <?php endif; ?>
-                    <!-- <p class="y-standard">₹ 3999/year</p> -->
-                    <button>Subscribe</button>
-                </div>
+                    <?php if ($tagline !== ''): ?>
+                        <p class="membership-card-tagline"><?php echo htmlspecialchars($tagline); ?></p>
+                    <?php endif; ?>
+                    <ul class="membership-card-list">
+                        <?php foreach ($slot['features'] as $desc): ?>
+                            <li><?php echo htmlspecialchars($desc); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <button type="button" class="<?php echo htmlspecialchars($cta_class); ?>" data-checkout-name="<?php echo htmlspecialchars($checkout_name); ?>">Subscribe</button>
+                </article>
+                <?php endforeach; ?>
             </div>
-            <div id="monthly-cards" class="cards hidden">
-                <div class="membership-card">
-                    <h2>Monthly Royal Pass</h2>
-                    <div class="card-content">
-                        <ul>
-
-                        <?php foreach ($royal_monthlyPlans as $desc): ?>
-                                <li><?php echo $desc; ?></li>
-                            <?php endforeach; ?>
-                            <!-- <li>50% off On Spa services</li>  
-                            <li>2 complimentary Hair Style per month</li>
-                            <li>2 complimentary Child HairCut Per Month</li>
-                            <li>Priority booking With Top stylists</li>
-                            <li>Free Product Gift & Samples</li> -->
-                        </ul>
-                    </div>
-                    <?php if ($royal_latestMonthlyPrice > 0): ?>
-                    <p>₹ <?php echo $royal_latestMonthlyPrice; ?>/month</p>
-                <?php endif; ?>
-                    <!-- <p>₹ 1299/month</p> -->
-                    <button>Subscribe</button>
-                </div>
-                <div class="membership-card">
-                    <h2>Monthly Classic Pass</h2>
-                    <div class="card-content">
-                        <ul>
-                            <!-- <li>30% off On Spa services</li>
-                            <li>1 complimentary Hair Style per month</li>
-                            <li>1 complimentary Child HairCut Per Month</li>
-                            <li>Priority booking Preferred Stylists</li>
-                            <li>Free Product Samples</li> -->
-                            <?php foreach ($classic_monthlyPlans as $desc): ?>
-                                <li><?php echo $desc; ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                    <!-- <p>₹ 699/month</p> -->
-                    <?php if ($classic_latestMonthlyPrice > 0): ?>
-                    <p>₹ <?php echo $classic_latestMonthlyPrice; ?>/month</p>
-                <?php endif; ?>
-                    <button>Subscribe</button>
-                </div>
-                <div class="membership-card">
-                    <h2>Monthly Standard Pass</h2>
-                    <div class="card-content">
-                        <ul>
-                            <!-- <li>20% off On Spa services</li>
-                            <li>10% off On Hair Styling</li>
-                            <li>5% off On Beard services</li>
-                            <li>Priority booking</li> -->
-                            <?php foreach ($standard_monthlyPlans as $desc): ?>
-                                <li><?php echo $desc; ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                    <?php if ($standard_latestMonthlyPrice > 0): ?>
-                    <p>₹ <?php echo $standard_latestMonthlyPrice; ?>/month</p>
-                <?php endif; ?>
-                    <!-- <p class="m-standard">₹ 399/month</p> -->
-                    <button>Subscribe</button>
-                </div>
-            </div>
+            <?php endforeach; ?>
         </div>
     </div>
 
@@ -501,10 +388,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="f-section" id="links">
                         <h3>Links</h3>
                             <div class="f-menu">
-                                <a href="about.php">About</a>
+                                <a href="index.php#about">About</a>
                                 <a href="service.php">Services</a>
                                 <a href="eshop.php">E - shop</a>
                                 <a href="membership.php">Membership</a>
+                                <a href="index.php#contact">Contact</a>
                             </div>
                     </div>
 
@@ -554,122 +442,110 @@ const closeBtn = document.querySelector('.close-btn');
 const membershipNameElement = document.getElementById('membership-name');
 const membershipPriceElement = document.getElementById('membership-price');
 
-// Function to show popup with pass name and price
-function openPopup(passName, price) {
+function formatInrDigits(priceDigits) {
+    return priceDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function openPopup(passName, priceDigits) {
+    if (!paymentPopup || !membershipNameElement || !membershipPriceElement) return;
     membershipNameElement.textContent = passName;
-    membershipPriceElement.textContent = price;
+    const pretty = formatInrDigits(priceDigits);
+    membershipPriceElement.textContent = pretty;
+    const typeInput = document.getElementById('membership-type');
+    const priceInput = document.getElementById('membership-price-hidden');
+    const paymentButton = document.getElementById('payment-btn');
+    if (typeInput) typeInput.value = passName;
+    if (priceInput) priceInput.value = priceDigits;
+    if (paymentButton) paymentButton.textContent = `Pay ₹ ${pretty}`;
     paymentPopup.classList.remove('hidden');
 }
 
 // Close the popup when clicking outside of it
 window.addEventListener('click', function (event) {
-    if (event.target === paymentPopup) {
+    if (paymentPopup && event.target === paymentPopup) {
         paymentPopup.classList.add('hidden');
     }
 });
 
 
-// Close the popup when 'x' is clicked
-closeBtn.addEventListener('click', () => {
-    paymentPopup.classList.add('hidden');
-});
+if (closeBtn && paymentPopup) {
+    closeBtn.addEventListener('click', () => {
+        paymentPopup.classList.add('hidden');
+    });
+}
 
-// Add event listeners to each subscribe button
-document.querySelectorAll('.membership-card button').forEach(button => {
+document.querySelectorAll('.membership-card-cta').forEach(button => {
     button.addEventListener('click', function() {
         const card = this.closest('.membership-card');
-        const passName = card.querySelector('h2').textContent;
-        const price = card.querySelector('p').textContent.match(/₹\s?([\d,]+)/)[1];
-        openPopup(passName, price);
+        const passName = this.getAttribute('data-checkout-name') || (card && card.querySelector('.membership-card-name') && card.querySelector('.membership-card-name').textContent.trim());
+        const digitsEl = card && card.querySelector('.membership-card-amount-digits');
+        if (!passName || !digitsEl) return;
+        const priceDigits = digitsEl.textContent.replace(/,/g, '').replace(/\D/g, '');
+        if (priceDigits === '') return;
+        openPopup(passName, priceDigits);
     });
 });
-// Get form elements
 const form = document.getElementById('payment-form');
 const cardNumberInput = document.getElementById('card-number');
 const cardNumberError = document.getElementById('card-number-error');
-
-// Format the card number into groups of 4 digits
-cardNumberInput.addEventListener('input', function (e) {
-    let value = e.target.value.replace(/\D/g, '').slice(0, 16); // Remove non-digits and limit to 16 digits
-    value = value.replace(/(.{4})/g, '$1 ').trim(); // Add a space every 4 digits
-    e.target.value = value;
-    cardNumberError.textContent = ''; // Clear error message when user types
-});
-
-// Custom form validation on submit
-form.addEventListener('submit', function (e) {
-    const cardNumberValue = cardNumberInput.value.replace(/\s/g, ''); // Remove spaces
-    if (cardNumberValue.length !== 16) {
-        e.preventDefault(); // Prevent form submission
-        cardNumberError.textContent = 'Card number must be 16 digits'; // Custom error message
-    } else {
-        cardNumberError.textContent = ''; // Clear error if valid
-    }
-});
-
-// Format the expiry date as MM/YY
-const expiryDateInput = document.getElementById('expiry-date');
-expiryDateInput.addEventListener('input', function (e) {
-    let value = e.target.value.replace(/\D/g, '').slice(0, 4); // Remove non-digits and limit to 4 digits
-    if (value.length >= 3) {
-        value = value.slice(0, 2) + '/' + value.slice(2); // Insert the slash after the month
-    }
-    e.target.value = value;
-});
-
-// Limit the CVV to 3 digits
-const cvvInput = document.getElementById('cvv');
-cvvInput.addEventListener('input', function (e) {
-    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 3); // Remove non-digits and limit to 3 digits
-});
-
-// Phone number validation
 const phoneNumberInput = document.getElementById('phone-number');
 const phoneNumberError = document.getElementById('phone-number-error');
+const expiryDateInput = document.getElementById('expiry-date');
+const cvvInput = document.getElementById('cvv');
 
-// Allow only numbers in the phone number field
-phoneNumberInput.addEventListener('input', function (e) {
-    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10); // Limit to 10 digits
-    phoneNumberError.textContent = ''; // Clear error message when user types
-});
-
-// Custom validation for phone number
-form.addEventListener('submit', function (e) {
-    const phoneNumberValue = phoneNumberInput.value;
-    if (phoneNumberValue.length !== 10) {
-        e.preventDefault(); // Prevent form submission
-        phoneNumberError.textContent = 'Phone number must be 10 digits'; // Custom error message
-    } else {
-        phoneNumberError.textContent = ''; // Clear error if valid
-    }
-});
-
-// Function to show popup with pass name and price
-// function openPopup(passName, price) {
-//     membershipNameElement.textContent = passName;
-//     membershipPriceElement.textContent = price;
-
-//     const paymentButton = document.getElementById('payment-btn');
-//     paymentButton.textContent = `Pay ₹ ${price}`; // Set button text to price
-
-//     paymentPopup.classList.remove('hidden');
-// }
-
-
-function openPopup(passName, price) {
-    membershipNameElement.textContent = passName;
-    membershipPriceElement.textContent = price;
-
-    // Set hidden input values
-    document.getElementById('membership-type').value = passName; // Set membership type
-    document.getElementById('membership-price-hidden').value = price; // Set price
-
-    const paymentButton = document.getElementById('payment-btn');
-    paymentButton.textContent = `Pay ₹ ${price}`; // Set button text to price
-
-    paymentPopup.classList.remove('hidden');
+if (cardNumberInput && cardNumberError) {
+    cardNumberInput.addEventListener('input', function (e) {
+        let value = e.target.value.replace(/\D/g, '').slice(0, 16);
+        value = value.replace(/(.{4})/g, '$1 ').trim();
+        e.target.value = value;
+        cardNumberError.textContent = '';
+    });
 }
 
+if (phoneNumberInput && phoneNumberError) {
+    phoneNumberInput.addEventListener('input', function (e) {
+        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+        phoneNumberError.textContent = '';
+    });
+}
+
+if (expiryDateInput) {
+    expiryDateInput.addEventListener('input', function (e) {
+        let value = e.target.value.replace(/\D/g, '').slice(0, 4);
+        if (value.length >= 3) {
+            value = value.slice(0, 2) + '/' + value.slice(2);
+        }
+        e.target.value = value;
+    });
+}
+
+if (cvvInput) {
+    cvvInput.addEventListener('input', function (e) {
+        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 3);
+    });
+}
+
+if (form && cardNumberInput && phoneNumberInput && cardNumberError && phoneNumberError) {
+    form.addEventListener('submit', function (e) {
+        const cardNumberValue = cardNumberInput.value.replace(/\s/g, '');
+        const phoneNumberValue = phoneNumberInput.value;
+        let ok = true;
+        if (cardNumberValue.length !== 16) {
+            e.preventDefault();
+            cardNumberError.textContent = 'Card number must be 16 digits';
+            ok = false;
+        } else {
+            cardNumberError.textContent = '';
+        }
+        if (phoneNumberValue.length !== 10) {
+            e.preventDefault();
+            phoneNumberError.textContent = 'Phone number must be 10 digits';
+            ok = false;
+        } else if (ok) {
+            phoneNumberError.textContent = '';
+        }
+    });
+}
 
     </script>
 

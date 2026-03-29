@@ -1,42 +1,48 @@
-let navbar=document.querySelector('.menu')
+const navbar = document.querySelector('.menu');
+const menuBtn = document.querySelector('#menu-btn');
+const searchform = document.querySelector('.search-form');
 
-document.querySelector('#menu-btn').onclick = () =>{
-    navbar.classList.toggle('active');
-    searchform.classList.remove('active');
-};
+if (menuBtn && navbar) {
+    menuBtn.onclick = () => {
+        navbar.classList.toggle('active');
+        if (searchform) searchform.classList.remove('active');
+    };
+}
 
-const searchbtn = document.getElementById('search-btn')
-const searchform=document.querySelector('.search-form')
+const searchbtn = document.getElementById('search-btn');
 
-// document.querySelector('#search-box').onclick = () =>{
-//     searchbar.classList.toggle('active');
-// }
-searchbtn.addEventListener('click', () => {
-    searchform.classList.toggle('active');
-    navbar.classList.remove('active');
-});
+if (searchbtn && searchform && navbar) {
+    searchbtn.addEventListener('click', () => {
+        searchform.classList.toggle('active');
+        navbar.classList.remove('active');
+    });
+}
 
 window.onscroll = () => {
-    navbar.classList.remove('active');
-    searchform.classList.remove('active');
+    if (navbar) navbar.classList.remove('active');
+    if (searchform) searchform.classList.remove('active');
 };
 
 
-const year=document.getElementById('yearly-btn');
+const year = document.getElementById('yearly-btn');
+const month = document.getElementById('monthly-btn');
+const yearlyCards = document.getElementById('yearly-cards');
+const monthlyCards = document.getElementById('monthly-cards');
+const pricingHiddenClass = 'membership-pricing-cards--hidden';
 
-year.addEventListener('click', function() {
-    document.getElementById('yearly-cards').classList.remove('hidden');
-    document.getElementById('monthly-cards').classList.add('hidden');
-    document.getElementById('yearly-btn').classList.add('active');
-    document.getElementById('monthly-btn').classList.remove('active');
-});
+if (year && month && yearlyCards && monthlyCards) {
+    year.addEventListener('click', function () {
+        yearlyCards.classList.remove(pricingHiddenClass);
+        monthlyCards.classList.add(pricingHiddenClass);
+        year.classList.add('active');
+        month.classList.remove('active');
+    });
 
-const month =document.getElementById('monthly-btn');
-
-month.addEventListener('click', function() {
-    document.getElementById('monthly-cards').classList.remove('hidden');
-    document.getElementById('yearly-cards').classList.add('hidden');
-    document.getElementById('monthly-btn').classList.add('active');
-    document.getElementById('yearly-btn').classList.remove('active');
-});
+    month.addEventListener('click', function () {
+        monthlyCards.classList.remove(pricingHiddenClass);
+        yearlyCards.classList.add(pricingHiddenClass);
+        month.classList.add('active');
+        year.classList.remove('active');
+    });
+}
 

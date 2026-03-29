@@ -101,7 +101,7 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
         <img src="photos/about-img1.jpeg" alt="" class="img">
         <div class="img-content">
             <h2>Men Salon Services</h2>
-            <div clsas="menu">
+            <div class="menu">
                 <a href="index.php">HOME</a> / <span><a href="appointment.php"> Book An Appointment</a></span>
             </div>
            

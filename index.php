@@ -1,14 +1,28 @@
 <?php
-    include('connect.php');
-    if(isset($_POST['make']) || isset($_POST['shedule_btn'])){
-        session_start();
-        if(!isset($_SESSION['user_id'])){
-            header('Location:login.php');
-        }
-        else{
-            header('Location:appointment.php');
-        }
+include('connect.php');
+
+if (isset($_POST['con-btn'])) {
+    $name = mysqli_real_escape_string($con, $_POST['name'] ?? '');
+    $email = mysqli_real_escape_string($con, $_POST['email'] ?? '');
+    $phone = mysqli_real_escape_string($con, $_POST['phone'] ?? '');
+    $message = mysqli_real_escape_string($con, $_POST['message'] ?? '');
+    $sql = "INSERT INTO contact_details (c_name, c_email, c_phone, c_message) VALUES ('$name', '$email', '$phone', '$message')";
+    if ($con->query($sql) === TRUE) {
+        header('Location: index.php?contact=sent#contact');
+        exit;
     }
+}
+
+$show_contact_sent = isset($_GET['contact']) && $_GET['contact'] === 'sent';
+
+if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
+    session_start();
+    if (!isset($_SESSION['user_id'])) {
+        header('Location:login.php');
+    } else {
+        header('Location:appointment.php');
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -123,7 +137,108 @@
 
         <!-- product section -->
 
-        <!-- shedule -->
+    <div class="home-about-heading" id="about">
+        <h2>About ClassyCut</h2>
+        <h6>Your trusted destination for premium men&rsquo;s grooming</h6>
+    </div>
+
+    <section class="photo-nav">
+        <div class="content">
+            <h1>About ClassyCut</h1>
+            <p>Welcome to ClassyCut salon, we&rsquo;re passionate about helping you look and feel your best. Our team of expert stylists and technicians are dedicated to providing exceptional service and unparalleled expertise in a warm and welcoming environment.</p>
+            <h4>Our Story</h4>
+            <p>The salon was founded in 2024. Our mission is to provide a personalized experience for each guest, tailoring our services to meet their unique needs and preferences.</p>
+            <h4>Why Choose Us?</h4>
+            <p>
+                <strong>Expertise:</strong> Our team is highly trained in the latest techniques and trends.<br>
+                <strong>Personalized service:</strong> We tailor every visit to your style and preferences.<br>
+                <strong>Quality products:</strong> We use premium products for lasting results.<br>
+                <strong>Relaxing atmosphere:</strong> A calm space so your visit feels like an escape.<br>
+                <strong>Convenience:</strong> Flexible scheduling and easy online booking.
+            </p>
+        </div>
+        <div class="video">
+            <video autoplay muted loop playsinline>
+                <source src="photos/about.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </section>
+
+    <section class="about-skill">
+        <div class="about-skill-img">
+            <img src="photos/homenew.jpg" alt="ClassyCut salon interior">
+        </div>
+        <div class="content">
+            <h1>Our Professional Skill</h1>
+            <p>Our grooming professionals have extensive experience in haircuts, shaves, beard grooming, and more. We use the latest techniques and tools so every client gets top-quality service.</p>
+            <div class="progress-bar-container">
+                <div class="label">Haircut</div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: 90%;"></div>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="label">Beard Grooming</div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: 70%;"></div>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="label">Skin Care</div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: 50%;"></div>
+                </div>
+            </div>
+            <h1>Our Advanced System</h1>
+            <p>ClassyCut&rsquo;s salon management system makes booking simple. Schedule appointments online at your convenience and enjoy timely, professional service.</p>
+        </div>
+    </section>
+
+    <div class="contact-main-container" id="contact">
+        <?php if ($show_contact_sent): ?>
+        <div class="contact-success-banner" role="status">Thank you! Your message was sent successfully.</div>
+        <?php endif; ?>
+        <div class="contact-container">
+            <div class="contact-form">
+                <h2>Contact Us</h2>
+                <form action="index.php" method="post">
+                    <div class="input-box">
+                        <input type="text" name="name" placeholder="Your Name" required>
+                    </div>
+                    <div class="input-box">
+                        <input type="email" name="email" placeholder="Your Email" required>
+                    </div>
+                    <div class="input-box">
+                        <input type="text" name="phone" placeholder="Your Phone" required>
+                    </div>
+                    <div class="input-box">
+                        <textarea name="message" placeholder="Your Message" required></textarea>
+                    </div>
+                    <div class="input-box">
+                        <button type="submit" name="con-btn" value="1">Send Message</button>
+                    </div>
+                </form>
+                <div class="social-media">
+                    <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-f"></i></a>
+                    <a href="https://www.twitter.com" target="_blank" rel="noopener noreferrer"><i class="fab fa-twitter"></i></a>
+                    <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer"><i class="fab fa-instagram"></i></a>
+                    <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+            <div class="contact-details">
+                <h3>Contact Details</h3>
+                <p>Mahuva Road, Savarkundla, Amreli, Gujarat</p>
+                <p>Email: classycut007@gmail.com</p>
+                <p>Phone: +91 7575852866</p>
+                <div class="map">
+                    <iframe title="ClassyCut location map" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3709.352952506167!2d71.2230961752118!3d21.611165967520822!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395880d05dcb3a59%3A0x1768ffa86cf05a5!2sKamani%20Science%20College%20And%20Prataprai%20Arts%20College!5e0!3m2!1sen!2sin!4v1723385829225!5m2!1sen!2sin" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- opening hours (after contact) -->
 
         <div class="shedule-container">
         <div class="shedule-time">
@@ -144,14 +259,7 @@
         </div>
     </div>
 
-    <!-- ----------------home section-------- -->
-
     <!-- footer sections -->
      <?php 
           include('footer.php');
      ?>
-
-    <script src="js/script.js"></script>
-</body>
-
-</html>
