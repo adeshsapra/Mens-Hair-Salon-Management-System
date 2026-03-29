@@ -1,24 +1,42 @@
 <?php 
 include 'connect.php';
 include('header.php'); 
+require_once('pagination_helper.php');
+require_once('page_header_helper.php');
 
-$admin = "SELECT * FROM admin";
-$admin_data = mysqli_query($con,$admin);
+// Pagination Logic
+$records_per_page = 10;
+$current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+if ($current_page < 1) {
+    $current_page = 1;
+}
 
+$count_query = "SELECT COUNT(*) AS total FROM admin";
+$count_result = mysqli_query($con, $count_query);
+$count_row = mysqli_fetch_assoc($count_result);
+$total_records = (int) $count_row['total'];
+
+$offset = ($current_page - 1) * $records_per_page;
+
+$admin = "SELECT * FROM admin ORDER BY admin_id DESC LIMIT $offset, $records_per_page";
+$admin_data = mysqli_query($con, $admin);
+
+?>
+
+<?php
+renderAdminPageIntro(
+    'Admin Settings',
+    'Administrator Management',
+    'Control administrator accounts, update access ownership, and manage active admin users.'
+);
 ?>
 
 <div class="main-content">
     <div class="content">
-    <h1>Admin</h1>
-        <p>Manage Admin here.</p>
-
-         <div class="right">
-         <div class="product-button">
-            <a href="add_admin.php">Add New Admin</a>
+        <div class="page-section-toolbar">
+            <h2>Administrator Directory</h2>
+            <a href="add_admin.php" class="add-service-btn"><i class="fas fa-plus"></i> Add New Admin</a>
         </div>
-</div>
-
-        <h2 style="margin-top:3rem;">Exisiting Admin</h2>
                 <div class="table-container">
                     <table>
                         <thead>
@@ -31,8 +49,8 @@ $admin_data = mysqli_query($con,$admin);
                             </tr>
                         </thead>
                         <tbody>
-                        <tr><?php
-                            $id_counter=1;
+                        <?php
+                            $id_counter = $offset + 1;
                               while($admin_row = mysqli_fetch_assoc($admin_data)){
                             ?>
                             <tr>
@@ -50,6 +68,9 @@ $admin_data = mysqli_query($con,$admin);
                             ?>
                         </tbody>
                     </table>
+                    <?php
+                    echo renderPagination($total_records, $current_page, $records_per_page, 'manage_admin.php');
+                    ?>
     </div>
 </div>
 

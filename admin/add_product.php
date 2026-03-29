@@ -3,6 +3,7 @@
 include('header.php');
 include('sidebar.php');
 include('connect.php');
+require_once('page_header_helper.php');
 if(isset($_POST['add-product'])){
 
     $p_name = $_POST['product_name'];
@@ -49,9 +50,16 @@ if(isset($_POST['add-product'])){
 ?>
 
 
+<?php
+renderAdminPageIntro(
+    'Products / Add Product',
+    'Create New Product',
+    'Add a new product with pricing, stock, rich details, and image assets for storefront readiness.'
+);
+?>
+
 <div class="main-content">
     <div class="content">
-        <h1>Add New Products</h1>
         <?php
                         if(isset($message))
                         {

@@ -2,8 +2,24 @@
 include('header.php'); 
 include('sidebar.php');
 include('connect.php');
+require_once('pagination_helper.php');
+require_once('page_header_helper.php');
 
-$payment = "SELECT * FROM product_sales JOIN payment ON product_sales.s_id = payment.s_id";
+// Pagination Logic
+$records_per_page = 10;
+$current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+if ($current_page < 1) {
+    $current_page = 1;
+}
+
+$count_query = "SELECT COUNT(*) AS total FROM product_sales JOIN payment ON product_sales.s_id = payment.s_id";
+$count_result = mysqli_query($con, $count_query);
+$count_row = mysqli_fetch_assoc($count_result);
+$total_records = (int) $count_row['total'];
+
+$offset = ($current_page - 1) * $records_per_page;
+
+$payment = "SELECT * FROM product_sales JOIN payment ON product_sales.s_id = payment.s_id ORDER BY product_sales.s_id DESC LIMIT $offset, $records_per_page";
 $payment_data = mysqli_query($con, $payment);
 ?>
 
@@ -21,15 +37,16 @@ $payment_data = mysqli_query($con, $payment);
     </style>
 </head>
 <body>
+    <?php
+    renderAdminPageIntro(
+        'Payments',
+        'Payment Management',
+        'Audit order payments, verify settlement status, and review transaction-specific details.'
+    );
+    ?>
     <div class="main-content">
         <div class="content">
-            <h1>Payments</h1>
-            <p>Manage Payments here.</p>
-        </div>
-    </div>
-    <div class="main-content">
-        <div class="content">
-            <h2>Existing Products Payments</h2>
+            <h2>Payment Transactions</h2>
             <div class="table-container">
                 <table>
                     <thead>
@@ -47,7 +64,7 @@ $payment_data = mysqli_query($con, $payment);
                     </thead>
                     <tbody>
                         <?php
-                        $id_counter = 1; 
+                        $id_counter = $offset + 1; 
                         while ($pay_fetch_row = mysqli_fetch_assoc($payment_data)) {
                         ?>
                             <tr>
@@ -74,6 +91,9 @@ $payment_data = mysqli_query($con, $payment);
                         ?>
                     </tbody>
                 </table>
+                <?php
+                echo renderPagination($total_records, $current_page, $records_per_page, 'payment_manage.php');
+                ?>
             </div>
         </div>
     </div>

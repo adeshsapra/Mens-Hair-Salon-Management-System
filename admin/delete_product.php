@@ -2,6 +2,7 @@
 include('header.php'); 
 include('sidebar.php'); 
 include('connect.php'); 
+require_once('page_header_helper.php');
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $query = "SELECT * FROM products WHERE p_id = $id";
@@ -27,9 +28,16 @@ if(isset($_POST['delete'])){
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <?php
+    renderAdminPageIntro(
+        'Products / Delete Product',
+        'Confirm Product Deletion',
+        'Review item details carefully before permanently removing the selected product entry.'
+    );
+    ?>
+
     <div class="main-content">
         <div class="content">
-            <h1>Delete Product</h1>
             <div class="delete-confirmation">
                 <h2>Are you sure you want to delete the following product?</h2>
                 <?php 

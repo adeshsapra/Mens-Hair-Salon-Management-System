@@ -3,6 +3,7 @@
 include('header.php');
 include('sidebar.php');
 include('connect.php');
+require_once('page_header_helper.php');
 
 
 $haircut_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -101,6 +102,14 @@ if(isset($_POST['spa-btn'])) {
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<?php
+renderAdminPageIntro(
+    'Services / Update Services',
+    'Update Service Records',
+    'Modify existing service entries and pricing across Hair, Beard, Skin, and Spa categories.'
+);
+?>
+
 <div class="main-content">
         <div class="content">
             <h1>Update Hair Services</h1>

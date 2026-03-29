@@ -2,8 +2,24 @@
 include('header.php'); 
 // include('sidebar.php');
 include('connect.php');
+require_once('pagination_helper.php');
+require_once('page_header_helper.php');
 
-$membership = "SELECT mp.*, ur.name FROM membership_payments mp JOIN user_reg ur ON mp.id = ur.id";
+// Pagination Logic
+$records_per_page = 10;
+$current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+if ($current_page < 1) {
+    $current_page = 1;
+}
+
+$count_query = "SELECT COUNT(*) AS total FROM membership_payments";
+$count_result = mysqli_query($con, $count_query);
+$count_row = mysqli_fetch_assoc($count_result);
+$total_records = (int) $count_row['total'];
+
+$offset = ($current_page - 1) * $records_per_page;
+
+$membership = "SELECT mp.*, ur.name FROM membership_payments mp JOIN user_reg ur ON mp.id = ur.id ORDER BY mp.m_id DESC LIMIT $offset, $records_per_page";
 $membership_data = mysqli_query($con,$membership);
 
 ?>
@@ -26,15 +42,16 @@ $membership_data = mysqli_query($con,$membership);
 
 </head>
 <body>
-    <div class="main-content">
-    <div class="content">
-        <h1>Membership</h1>
-        <p>Memberships Details here.</p>
-    </div>
-</div>
+<?php
+renderAdminPageIntro(
+    'Membership / Payment Details',
+    'Membership Transactions',
+    'Review subscribed memberships, payment records, and card-holder information in one table.'
+);
+?>
 <div class="main-content">
         <div class="content">
-        <h2>Exisiting Membership Details</h2>
+        <h2>Membership Transaction Records</h2>
                 <div class="table-container">
                     <table>
                         <thead>
@@ -49,8 +66,8 @@ $membership_data = mysqli_query($con,$membership);
                             </tr>
                         </thead>
                         <tbody>
-                        <tr><?php 
-                        $id_counter =1;
+                        <?php 
+                        $id_counter = $offset + 1;
                                 while($membership_fetch_row = mysqli_fetch_assoc($membership_data)){
                             ?>
                             <tr>
@@ -67,6 +84,9 @@ $membership_data = mysqli_query($con,$membership);
                             ?>
                         </tbody>
                     </table>
+                    <?php
+                    echo renderPagination($total_records, $current_page, $records_per_page, 'membership_details.php');
+                    ?>
         </div>
 </div>
 </body>
