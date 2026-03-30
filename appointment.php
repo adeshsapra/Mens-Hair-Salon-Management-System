@@ -232,21 +232,32 @@ if (isset($_POST['a-btn'])) {
       <!-- shedule -->
 
       <div class="shedule-container">
-        <div class="shedule-time">
-            <h1>Opening Hours</h1>
-            <h6>- ClassyCut Hair Styles For Men -</h6>
-            <p>Sunday to Saturday, </p><p class="time">9AM - 6PM</p>
-            <p>For Appointment OR Enquiries:</p>
-            <p class="phone-numbers">
-                <span>+91 75758 52866</span>
-                <span>+91 97245 64257</span>
-                <span>+91 90676 69524</span>
-            </p>
-            <form action="" method="post">
-                <div class="shedule-btn">
-                    <button type="submit" name="shedule_btn">Make an Appointment</button>
+        <div class="shedule-inner">
+            <div class="shedule-panel shedule-time">
+                <div class="shedule-intro">
+                    <p class="shedule-eyebrow">Plan your visit</p>
+                    <h1>Opening hours</h1>
+                    <p class="shedule-tagline">ClassyCut &middot; Hair styles for men</p>
                 </div>
-            </form>
+                <div class="shedule-hours">
+                    <span class="shedule-days">Sunday to Saturday</span>
+                    <span class="shedule-hours-accent" aria-hidden="true"></span>
+                    <span class="shedule-slot time">9:00 AM &ndash; 6:00 PM</span>
+                </div>
+                <div class="shedule-contact">
+                    <p class="shedule-cta-label">Appointments &amp; enquiries</p>
+                    <ul class="shedule-phones">
+                        <li><a href="tel:+917575852866">+91 75758 52866</a></li>
+                        <li><a href="tel:+919724564257">+91 97245 64257</a></li>
+                        <li><a href="tel:+919067669524">+91 90676 69524</a></li>
+                    </ul>
+                </div>
+                <form action="" method="post">
+                    <div class="shedule-btn">
+                        <button type="submit" name="shedule_btn">Make an appointment</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
     <?php include('footer.php'); ?>
