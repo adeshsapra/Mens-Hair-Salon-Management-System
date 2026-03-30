@@ -1,63 +1,61 @@
 <!-- footer sections -->
 
-<footer>
-        <div class="container">
-                <div class="row">
-                    <div class="f-section" id="company">
-                        <h2 class="f-logo">ClassyCut</h2>
-                        <p class="f-text">we believe that style is an experience the perfect blend of luxury and professional expertise at ClassyCut.whether you're here for a haircut, a relaxing skin treatment, or a complete makeover</p>
-                        <div class="media">
-                            <a href="#"><i class="fab fa-facebook"></i></a>
-                            <a href="#"><i class="fab fa-instagram"></i></a>
-                            <a href="#"><i class="fab fa-twitter"></i></a>
-                            <a href="#"><i class="fab fa-linkedin"></i></a>
-                        </div>
-                    </div>
-
-
-                    <div class="f-section" id="links">
-                        <h3>Links</h3>
-                            <div class="f-menu">
-                                <a href="index.php#about">About</a>
-                                <a href="service.php">Services</a>
-                                <a href="eshop.php">E - shop</a>
-                                <a href="membership.php">Membership</a>
-                                <a href="index.php#contact">Contact</a>
-                            </div>
-                    </div>
-
-
-                    <div class="f-section" id="service">
-                        <h3>Services</h3>
-                        <div class="f-menu">
-                            <a href="service.php">Stylish Hair Cut</a>
-                            <a href="service.php">Hair Color</a>
-                            <a href="service.php">Stylish Beard Trim</a>
-                            <a href="service.php">Beard Trim</a>
-                            <a href="service.php">Skin Treatment</a>
-                            <a href="service.php">Spa Services</a>
-                        </div>
-                    </div>
-
-
-                    <div class="f-section" id="contact">
-                        <h3>Contact</h3>
-                            <div class="detail">
-                                <i class="fa fa-phone"></i>
-                                <p>Phone: (+91) 7575852866</p>
-                            </div>
-                            <div class="detail">
-                                <i class="fas fa-envelope"></i>
-                                <p>classycut007@gmail.com</p>
-                            </div>
-                        </div>
-                    </div>
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-grid">
+            <div class="f-section footer-brand" id="company">
+                <a href="index.php" class="f-logo">ClassyCut</a>
+                <p class="f-text">We believe style is an experience—the perfect blend of luxury and professional expertise. Whether you&rsquo;re here for a cut, a relaxing skin treatment, or a full refresh, we&rsquo;re glad you chose us.</p>
+                <div class="media">
+                    <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                    <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
                 </div>
             </div>
-        <div class="footer-bottom">
-            <p>&copy; Copyrights @Classycut. All Rights Reserved</p>
-            <p>Designed by Ak-Developer.</p>
+
+            <div class="f-section" id="links">
+                <h3>Links</h3>
+                <nav class="f-menu" aria-label="Footer links">
+                    <a href="index.php#about">About</a>
+                    <a href="service.php">Services</a>
+                    <a href="eshop.php">E-shop</a>
+                    <a href="membership.php">Membership</a>
+                    <a href="index.php#contact">Contact</a>
+                </nav>
+            </div>
+
+            <div class="f-section" id="service">
+                <h3>Services</h3>
+                <nav class="f-menu" aria-label="Services">
+                    <a href="service.php">Stylish haircut</a>
+                    <a href="service.php">Hair color</a>
+                    <a href="service.php">Stylish beard trim</a>
+                    <a href="service.php">Beard trim</a>
+                    <a href="service.php">Skin treatment</a>
+                    <a href="service.php">Spa services</a>
+                </nav>
+            </div>
+
+            <div class="f-section" id="contact">
+                <h3>Contact</h3>
+                <div class="footer-contact-list">
+                    <a class="detail" href="tel:+917575852866">
+                        <span class="detail-icon" aria-hidden="true"><i class="fa fa-phone"></i></span>
+                        <span class="detail-text">(+91) 75758 52866</span>
+                    </a>
+                    <a class="detail" href="mailto:classycut007@gmail.com">
+                        <span class="detail-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
+                        <span class="detail-text">classycut007@gmail.com</span>
+                    </a>
+                </div>
+            </div>
         </div>
+    </div>
+    <div class="footer-bottom">
+        <p class="footer-copy">&copy; <?php echo date('Y'); ?> ClassyCut. All rights reserved.</p>
+        <p class="footer-credit">Designed by Ak-Developer</p>
+    </div>
 </footer>
 
 <!-- ========================================== -->
@@ -147,12 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check for PHP Session toasts
     <?php if (isset($_SESSION['toast-msg'])): ?>
         showToast("<?php echo addslashes($_SESSION['toast-msg']); ?>", "<?php echo isset($_SESSION['toast-type']) ? $_SESSION['toast-type'] : 'success'; ?>");
-        <?php
+    <?php
     unset($_SESSION['toast-msg']);
     unset($_SESSION['toast-type']);
-?>
-    <?php
-endif; ?>
+    endif;
+    ?>
 
     // Check for URL Parameter toasts
     const urlParams = new URLSearchParams(window.location.search);
