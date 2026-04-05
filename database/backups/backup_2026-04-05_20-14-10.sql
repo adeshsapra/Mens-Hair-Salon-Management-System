@@ -260,6 +260,34 @@ INSERT INTO `membership_payments` VALUES (2,6,'Yearly Royal Pass',11999.00,'aksh
 UNLOCK TABLES;
 
 --
+-- Table structure for table `membership_plans`
+--
+
+DROP TABLE IF EXISTS `membership_plans`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `membership_plans` (
+  `mp_id` int(11) NOT NULL,
+  `pass_key` varchar(20) NOT NULL,
+  `display_name` varchar(150) NOT NULL,
+  `billing_plan` varchar(20) NOT NULL,
+  `price` int(11) NOT NULL DEFAULT 0,
+  `features_json` longtext NOT NULL,
+  `is_featured` tinyint(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `membership_plans`
+--
+
+LOCK TABLES `membership_plans` WRITE;
+/*!40000 ALTER TABLE `membership_plans` DISABLE KEYS */;
+INSERT INTO `membership_plans` VALUES (1,'royal','Royal Pass','yearly',11999,'[\"2 complimentary Child HairCut Per 3 Month\",\"2 complimentary Hair Style per 3 month\",\"Free Product Gift & Samples\",\"Unlimited Beards & Skin Services\",\"Unlimited Hair Styling 2 Times a Month\"]',1),(2,'royal','Royal Pass','monthly',499,'[\"2 complimentary Child HairCut Per Month\",\"2 complimentary Hair Style per month\",\"50% off On Spa services\",\"Priority booking With Top stylists\"]',0),(3,'classic','Classic Pass','yearly',7999,'[\"1 complimentary Child HairCut Per Month\",\"1 complimentary Hair Style per month\",\"Free Product Samples\",\"Priority booking Preferred Stylists\",\"Unlimited Beards & Skin Services\"]',0),(4,'classic','Classic Pass','monthly',699,'[\"1 complimentary Child HairCut Per Month\",\"1 complimentary Hair Style per month\",\"30% off On Spa services\",\"Free Product Samples\",\"Priority booking Preferred Stylists\"]',1),(5,'standard','Standard Pass','yearly',3999,'[\"1 complimentary HairCut Per 3 Months\",\"10% off On Hair Styling\",\"5% off On Beard services\",\"Priority booking\"]',0),(6,'standard','Standard Pass','monthly',399,'[\"10% off On Hair Styling\",\"20% off On Spa services\",\"5% off On Beard services\",\"Priority booking\"]',0);
+/*!40000 ALTER TABLE `membership_plans` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `order_status_updates`
 --
 
@@ -670,4 +698,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-28 17:37:18
+-- Dump completed on 2026-04-05 23:44:11
