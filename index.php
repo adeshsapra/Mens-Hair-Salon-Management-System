@@ -38,7 +38,7 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
      <!-- box link -->
      <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 </head>
-<body>
+<body class="home-page">
 
     <!-- header and navigation section -->
 
@@ -48,17 +48,21 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
     <!-- ----------------home section-------- -->
     <section class="home">
         <img src="photos/homebest.png" alt="Background Image" class="home-bg">
-        <div class="content">
-            <h3>Staying In Style Forever</h3>
-            <p>
-                We make your hair look perfect, our expert stylists create professional works of art and try to exceed your expectations.
+        <div class="content hero-content">
+            <span class="hero-kicker hero-animate" data-hero-delay="0.05s">Premium men&rsquo;s grooming studio</span>
+            <h3 class="hero-title" data-hero-split>Staying In Style Forever</h3>
+            <p class="hero-animate" data-hero-delay="0.45s">
+                We craft sharp haircuts, clean beard lines, and modern grooming looks with detail-focused service that is designed around your style.
             </p>
-            <!-- <div> -->
-                <form action="" method="post" class="index-form-button">
-                <a href="appointment.php"><button name="make" class="main-btn">Make an Appointment</button></a>
-                </form>
-                <!-- <a href="appointment.php">Make an Appointment</a> -->
-            <!-- </div> -->
+            <div class="hero-actions hero-animate" data-hero-delay="0.7s">
+                <a href="appointment.php" class="main-btn hero-btn-primary">Make An Appointment</a>
+                <a href="eshop.php" class="hero-btn-secondary">View E-Shop</a>
+            </div>
+            <div class="hero-points hero-animate" data-hero-delay="0.95s">
+                <span><i class="fa-solid fa-scissors" aria-hidden="true"></i> Expert Stylists</span>
+                <span><i class="fa-solid fa-clock" aria-hidden="true"></i> Easy Online Booking</span>
+                <span><i class="fa-solid fa-star" aria-hidden="true"></i> Premium Products</span>
+            </div>
         </div>
     </section>
 
