@@ -4,6 +4,7 @@ include('header.php');
 include('connect.php');
 require_once('pagination_helper.php');
 require_once('page_header_helper.php');
+require_once('filter_helper.php');
 
 // Messages array
 $messages = [];
@@ -14,6 +15,17 @@ $active_tab = isset($_GET['tab']) ? strtolower(trim($_GET['tab'])) : 'haircut';
 if (!in_array($active_tab, $valid_tabs, true)) {
     $active_tab = 'haircut';
 }
+
+// Filter Logic
+$filterConfigHair = ['search' => ['type' => 'search', 'cols' => ['hair_category', 'hair_service']]];
+$filterConfigBeard = ['search' => ['type' => 'search', 'cols' => ['beard_service']]];
+$filterConfigSkin = ['search' => ['type' => 'search', 'cols' => ['skin_service']]];
+$filterConfigSpa = ['search' => ['type' => 'search', 'cols' => ['spa_category', 'spa_service']]];
+
+$whereHair = buildSimpleWhere($con, $filterConfigHair);
+$whereBeard = buildSimpleWhere($con, $filterConfigBeard);
+$whereSkin = buildSimpleWhere($con, $filterConfigSkin);
+$whereSpa = buildSimpleWhere($con, $filterConfigSpa);
 
 // ============================================
 // ADD SERVICES LOGIC
@@ -184,33 +196,33 @@ if ($beard_page < 1) $beard_page = 1;
 if ($skin_page < 1) $skin_page = 1;
 if ($spa_page < 1) $spa_page = 1;
 
-$haircut_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM haircut_service");
+$haircut_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM haircut_service $whereHair");
 $haircut_total_records = (int) mysqli_fetch_assoc($haircut_total_result)['total'];
 $haircut_total_pages = max(1, (int) ceil($haircut_total_records / $records_per_page));
 if ($haircut_page > $haircut_total_pages) $haircut_page = $haircut_total_pages;
 $haircut_offset = ($haircut_page - 1) * $records_per_page;
-$haircut_data = mysqli_query($con, "SELECT * FROM haircut_service ORDER BY hair_id DESC LIMIT $haircut_offset, $records_per_page");
+$haircut_data = mysqli_query($con, "SELECT * FROM haircut_service $whereHair ORDER BY hair_id DESC LIMIT $haircut_offset, $records_per_page");
 
-$beard_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM beard_service");
+$beard_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM beard_service $whereBeard");
 $beard_total_records = (int) mysqli_fetch_assoc($beard_total_result)['total'];
 $beard_total_pages = max(1, (int) ceil($beard_total_records / $records_per_page));
 if ($beard_page > $beard_total_pages) $beard_page = $beard_total_pages;
 $beard_offset = ($beard_page - 1) * $records_per_page;
-$beard_data = mysqli_query($con, "SELECT * FROM beard_service ORDER BY beard_id DESC LIMIT $beard_offset, $records_per_page");
+$beard_data = mysqli_query($con, "SELECT * FROM beard_service $whereBeard ORDER BY beard_id DESC LIMIT $beard_offset, $records_per_page");
 
-$skin_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM skin_service");
+$skin_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM skin_service $whereSkin");
 $skin_total_records = (int) mysqli_fetch_assoc($skin_total_result)['total'];
 $skin_total_pages = max(1, (int) ceil($skin_total_records / $records_per_page));
 if ($skin_page > $skin_total_pages) $skin_page = $skin_total_pages;
 $skin_offset = ($skin_page - 1) * $records_per_page;
-$skin_data = mysqli_query($con, "SELECT * FROM skin_service ORDER BY skin_id DESC LIMIT $skin_offset, $records_per_page");
+$skin_data = mysqli_query($con, "SELECT * FROM skin_service $whereSkin ORDER BY skin_id DESC LIMIT $skin_offset, $records_per_page");
 
-$spa_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM spa_service");
+$spa_total_result = mysqli_query($con, "SELECT COUNT(*) AS total FROM spa_service $whereSpa");
 $spa_total_records = (int) mysqli_fetch_assoc($spa_total_result)['total'];
 $spa_total_pages = max(1, (int) ceil($spa_total_records / $records_per_page));
 if ($spa_page > $spa_total_pages) $spa_page = $spa_total_pages;
 $spa_offset = ($spa_page - 1) * $records_per_page;
-$spa_data = mysqli_query($con, "SELECT * FROM spa_service ORDER BY spa_id DESC LIMIT $spa_offset, $records_per_page");
+$spa_data = mysqli_query($con, "SELECT * FROM spa_service $whereSpa ORDER BY spa_id DESC LIMIT $spa_offset, $records_per_page");
 
 ?>
 
@@ -230,7 +242,31 @@ renderAdminPageIntro(
 );
 ?>
 
+    <div class="main-content" style="padding-top: 0; padding-bottom: 0;">
+        <div class="content" style="background: transparent; box-shadow: none; padding: 0;">
+            <?php
+            $filters = [
+                [
+                    'type' => 'text',
+                    'name' => 'search',
+                    'placeholder' => 'Search services...',
+                    'value' => $_GET['search'] ?? '',
+                    'label' => 'Global Search'
+                ]
+            ];
+            renderFilters($filters, '', [
+                'tab' => $active_tab,
+                'haircut_page' => $haircut_page,
+                'beard_page' => $beard_page,
+                'skin_page' => $skin_page,
+                'spa_page' => $spa_page
+            ]);
+            ?>
+        </div>
+    </div>
+
 <div class="service-body">
+
     <div class="main-service-container">
         <?php
 foreach ($messages as $msg) {
@@ -253,10 +289,25 @@ if (isset($confirm) && is_array($confirm)) {
 
         <div class="tabs-container">
             <div class="tab-header">
-                <button type="button" class="tab-btn <?php echo $active_tab === 'haircut' ? 'active' : ''; ?>" onclick="openTab(event, 'haircut')"><i class="fas fa-cut"></i> HairCut Services</button>
-                <button type="button" class="tab-btn <?php echo $active_tab === 'beard' ? 'active' : ''; ?>" onclick="openTab(event, 'beard')"><i class="fas fa-smile"></i> Beard Trim Services</button>
-                <button type="button" class="tab-btn <?php echo $active_tab === 'skin' ? 'active' : ''; ?>" onclick="openTab(event, 'skin')"><i class="fas fa-spa"></i> Skin Treatment Services</button>
-                <button type="button" class="tab-btn <?php echo $active_tab === 'spa' ? 'active' : ''; ?>" onclick="openTab(event, 'spa')"><i class="fas fa-leaf"></i> Spa Services</button>
+                <?php
+                $s = $_GET['search'] ?? '';
+                $pArr = [
+                    'haircut_page' => $haircut_page,
+                    'beard_page' => $beard_page,
+                    'skin_page' => $skin_page,
+                    'spa_page' => $spa_page
+                ];
+                function buildServiceTabLink($t, $srch, $pages) {
+                    $u = "service_manage.php?tab=$t";
+                    if ($srch) $u .= "&search=" . urlencode($srch);
+                    foreach ($pages as $k => $v) $u .= "&$k=$v";
+                    return $u;
+                }
+                ?>
+                <a href="<?php echo buildServiceTabLink('haircut', $s, $pArr); ?>" class="tab-btn <?php echo $active_tab === 'haircut' ? 'active' : ''; ?>"><i class="fas fa-cut"></i> HairCut Services</a>
+                <a href="<?php echo buildServiceTabLink('beard', $s, $pArr); ?>" class="tab-btn <?php echo $active_tab === 'beard' ? 'active' : ''; ?>"><i class="fas fa-smile"></i> Beard Trim Services</a>
+                <a href="<?php echo buildServiceTabLink('skin', $s, $pArr); ?>" class="tab-btn <?php echo $active_tab === 'skin' ? 'active' : ''; ?>"><i class="fas fa-spa"></i> Skin Treatment Services</a>
+                <a href="<?php echo buildServiceTabLink('spa', $s, $pArr); ?>" class="tab-btn <?php echo $active_tab === 'spa' ? 'active' : ''; ?>"><i class="fas fa-leaf"></i> Spa Services</a>
             </div>
 
             <!-- Haircut Tab -->
@@ -305,6 +356,7 @@ while ($row = mysqli_fetch_assoc($haircut_data)) { ?>
                     'service_manage.php',
                     [
                         'tab' => 'haircut',
+                        'search' => $_GET['search'] ?? '',
                         'beard_page' => $beard_page,
                         'skin_page' => $skin_page,
                         'spa_page' => $spa_page
@@ -358,6 +410,7 @@ while ($row = mysqli_fetch_assoc($beard_data)) { ?>
                     'service_manage.php',
                     [
                         'tab' => 'beard',
+                        'search' => $_GET['search'] ?? '',
                         'haircut_page' => $haircut_page,
                         'skin_page' => $skin_page,
                         'spa_page' => $spa_page
@@ -411,6 +464,7 @@ while ($row = mysqli_fetch_assoc($skin_data)) { ?>
                     'service_manage.php',
                     [
                         'tab' => 'skin',
+                        'search' => $_GET['search'] ?? '',
                         'haircut_page' => $haircut_page,
                         'beard_page' => $beard_page,
                         'spa_page' => $spa_page
@@ -466,6 +520,7 @@ while ($row = mysqli_fetch_assoc($spa_data)) { ?>
                     'service_manage.php',
                     [
                         'tab' => 'spa',
+                        'search' => $_GET['search'] ?? '',
                         'haircut_page' => $haircut_page,
                         'beard_page' => $beard_page,
                         'skin_page' => $skin_page

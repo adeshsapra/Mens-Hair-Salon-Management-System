@@ -3,6 +3,7 @@ include('header.php');
 include('connect.php');
 require_once('pagination_helper.php');
 require_once('page_header_helper.php');
+require_once('filter_helper.php');
 require_once __DIR__ . '/../payment_integration_helpers.php';
 
 $records_per_page = 10;
@@ -148,7 +149,19 @@ $membership_data = false;
 $offset = ($current_page - 1) * $records_per_page;
 
 if ($tableReady) {
-    $count_query = "SELECT COUNT(*) AS total FROM membership_transactions";
+    $whereFields = [
+        'search' => ['ur.name', 'ur.email', 'ur.username', 'mt.mt_id'],
+        'status' => 'mt.status',
+        'start_date' => ['mt.subscribed_at', '>='],
+        'end_date' => ['mt.subscribed_at', '<=', '23:59:59']
+    ];
+    $whereClause = buildSimpleWhere($con, $whereFields);
+    $finalWhere = $whereClause ? "WHERE $whereClause" : "";
+
+    $count_query = "SELECT COUNT(*) AS total 
+                    FROM membership_transactions mt
+                    LEFT JOIN user_reg ur ON mt.user_id = ur.id
+                    $finalWhere";
     $count_result = mysqli_query($con, $count_query);
     $count_row = $count_result ? mysqli_fetch_assoc($count_result) : ['total' => 0];
     $total_records = (int) ($count_row['total'] ?? 0);
@@ -172,6 +185,7 @@ if ($tableReady) {
         LEFT JOIN payment p ON mt.pay_id = p.pay_id
         LEFT JOIN membership_plans mp ON mt.mp_id = mp.mp_id
         LEFT JOIN admin a ON mt.cancelled_by_admin_id = a.admin_id
+        $finalWhere
         ORDER BY mt.mt_id DESC
         LIMIT {$offset}, {$records_per_page}
     ";
@@ -333,6 +347,44 @@ renderAdminPageIntro(
 );
 ?>
 <div class="main-content">
+    <div class="content" style="background: transparent; box-shadow: none; padding: 0;">
+        <?php
+        $filters = [
+            [
+                'type' => 'text',
+                'name' => 'search',
+                'placeholder' => 'Search name, email...',
+                'value' => $_GET['search'] ?? '',
+                'label' => 'Search User'
+            ],
+            [
+                'type' => 'select',
+                'name' => 'status',
+                'label' => 'Status',
+                'options' => [
+                    '' => 'All Status',
+                    'active' => 'Active',
+                    'expired' => 'Expired',
+                    'cancelled' => 'Cancelled'
+                ],
+                'value' => $_GET['status'] ?? ''
+            ],
+            [
+                'type' => 'date',
+                'name' => 'start_date',
+                'label' => 'Subscribed From',
+                'value' => $_GET['start_date'] ?? ''
+            ],
+            [
+                'type' => 'date',
+                'name' => 'end_date',
+                'label' => 'Subscribed To',
+                'value' => $_GET['end_date'] ?? ''
+            ]
+        ];
+        renderFilters($filters);
+        ?>
+    </div>
     <div class="content">
         <h2>Membership Transaction Records</h2>
 
@@ -472,7 +524,11 @@ renderAdminPageIntro(
                     ?>
                     </tbody>
                 </table>
-                <?php echo renderPagination($total_records, $current_page, $records_per_page, 'membership_details.php'); ?>
+                <?php 
+                $params = $_GET;
+                unset($params['page']);
+                echo renderPagination($total_records, $current_page, $records_per_page, 'membership_details.php', $params); 
+                ?>
             </div>
         <?php endif; ?>
     </div>

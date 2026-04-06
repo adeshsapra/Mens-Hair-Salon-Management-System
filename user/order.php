@@ -1,12 +1,23 @@
 <?php
 include 'header.php';
 include 'connect.php';
+require_once '../admin/filter_helper.php';
 
 $user_id = (int) $_SESSION['user_id'];
 
+// Filter Configuration
+$filterConfig = [
+    'search' => ['col' => 's_name', 'type' => 'like'],
+    'status' => ['col' => 's_status', 'type' => 'equals'],
+    'start_date' => ['col' => 's_date', 'type' => 'date_start'],
+    'end_date' => ['col' => 's_date', 'type' => 'date_end']
+];
+
+$whereClause = buildSimpleWhere($con, $filterConfig, " AND ");
+
 $salesResult = mysqli_query(
     $con,
-    "SELECT * FROM product_sales WHERE id = {$user_id} ORDER BY s_date DESC, s_time DESC, s_id DESC"
+    "SELECT * FROM product_sales WHERE id = {$user_id} $whereClause ORDER BY s_date DESC, s_time DESC, s_id DESC"
 );
 
 if (!$salesResult) {
@@ -76,7 +87,8 @@ if ($productQuery) {
     }
 }
 
-function getTrackingSteps($row) {
+function getTrackingSteps($row)
+{
     $history = $row['history'];
     $status = strtolower($row['s_status']);
     $paymentStatus = strtolower($row['payment_status']);
@@ -94,92 +106,316 @@ function getTrackingSteps($row) {
     return ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 }
 
-function getStepIcon($step) {
+function getStepIcon($step)
+{
     switch ($step) {
-        case 'pending': return 'fa-clock';
-        case 'confirmed': return 'fa-check';
-        case 'processing': return 'fa-cog';
-        case 'shipped': return 'fa-truck';
-        case 'delivered': return 'fa-home';
-        case 'cancelled': return 'fa-ban';
-        case 'refunded': return 'fa-wallet';
-        default: return 'fa-circle';
+        case 'pending':
+            return 'fa-clock';
+        case 'confirmed':
+            return 'fa-check';
+        case 'processing':
+            return 'fa-cog';
+        case 'shipped':
+            return 'fa-truck';
+        case 'delivered':
+            return 'fa-home';
+        case 'cancelled':
+            return 'fa-ban';
+        case 'refunded':
+            return 'fa-wallet';
+        default:
+            return 'fa-circle';
     }
 }
 ?>
 
 <style>
-    .order-tracking-container { padding: 20px 0; margin-top: 20px; border-top: 1px solid #eee; }
-    .tracking-steps { display: flex; justify-content: space-between; position: relative; margin-bottom: 10px; }
-    .tracking-steps::before { content: ''; position: absolute; top: 15px; left: 0; width: 100%; height: 2px; background: #e0e0e0; z-index: 1; }
-    .step { position: relative; z-index: 2; text-align: center; flex: 1; }
-    .step-icon { width: 30px; height: 30px; background: #e0e0e0; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-size: 12px; border: 4px solid white; }
-    .step.active .step-icon { background: var(--brand); box-shadow: 0 0 10px rgba(203,185,15,0.4); }
-    .step-text { font-size: 11px; font-weight: 600; color: #999; text-transform: capitalize; }
-    .step.active .step-text { color: var(--brand); }
-    .step-time { font-size: 9px; color: #bbb; display: block; margin-top: 2px; }
-    .step.active .step-time { color: #666; }
-    .order-card-modern { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden; }
-    .card-top { display: flex; padding: 20px; }
-    .order-img-container { width: 120px; height: 120px; border-radius: 12px; overflow: hidden; border: 1px solid #eee; flex-shrink: 0; }
-    .order-info-container { flex: 1; padding-left: 20px; }
-    .order-actions-bar { background: #fcfcfc; padding: 15px 20px; border-top: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+    .order-tracking-container {
+        padding: 20px 0;
+        margin-top: 20px;
+        border-top: 1px solid #eee;
+    }
+
+    .tracking-steps {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        margin-bottom: 10px;
+    }
+
+    .tracking-steps::before {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: #e0e0e0;
+        z-index: 1;
+    }
+
+    .step {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        flex: 1;
+    }
+
+    .step-icon {
+        width: 30px;
+        height: 30px;
+        background: #e0e0e0;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-size: 12px;
+        border: 4px solid white;
+    }
+
+    .step.active .step-icon {
+        background: var(--brand);
+        box-shadow: 0 0 10px rgba(203, 185, 15, 0.4);
+    }
+
+    .step-text {
+        font-size: 11px;
+        font-weight: 600;
+        color: #999;
+        text-transform: capitalize;
+    }
+
+    .step.active .step-text {
+        color: var(--brand);
+    }
+
+    .step-time {
+        font-size: 9px;
+        color: #bbb;
+        display: block;
+        margin-top: 2px;
+    }
+
+    .step.active .step-time {
+        color: #666;
+    }
+
+    .order-card-modern {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        margin-bottom: 25px;
+        overflow: hidden;
+    }
+
+    .card-top {
+        display: flex;
+        padding: 20px;
+    }
+
+    .order-img-container {
+        width: 120px;
+        height: 120px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #eee;
+        flex-shrink: 0;
+    }
+
+    .order-info-container {
+        flex: 1;
+        padding-left: 20px;
+    }
+
+    .order-actions-bar {
+        background: #fcfcfc;
+        padding: 15px 20px;
+        border-top: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
 
     @media (max-width: 992px) {
-        .card-top { flex-direction: column; align-items: flex-start; padding: 15px; }
-        .order-img-container { margin-bottom: 15px; width: 80px; height: 80px; }
-        .order-info-container { padding-left: 0; width: 100%; }
-        
+        .card-top {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 15px;
+        }
+
+        .order-img-container {
+            margin-bottom: 15px;
+            width: 80px;
+            height: 80px;
+        }
+
+        .order-info-container {
+            padding-left: 0;
+            width: 100%;
+        }
+
         /* Vertical Stepper for Mobile/Tablet */
-        .tracking-steps { flex-direction: column; align-items: flex-start; padding-left: 10px; margin-top: 10px; }
-        .tracking-steps::before { top: 0; left: 24px; width: 2px; height: 100%; }
-        .step { display: flex; align-items: center; gap: 12px; text-align: left; margin-bottom: 25px; width: 100%; flex: none; min-height: 40px; position: relative; }
-        .step:last-child { margin-bottom: 0; }
-        .step-icon { margin: 0; flex-shrink: 0; width: 28px; height: 28px; position: relative; z-index: 3; }
-        .step-text { margin: 0; font-size: 12px; width: auto; }
-        .step-time { margin: 0; margin-left: auto; white-space: nowrap; }
+        .tracking-steps {
+            flex-direction: column;
+            align-items: flex-start;
+            padding-left: 10px;
+            margin-top: 10px;
+        }
+
+        .tracking-steps::before {
+            top: 0;
+            left: 24px;
+            width: 2px;
+            height: 100%;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+            margin-bottom: 25px;
+            width: 100%;
+            flex: none;
+            min-height: 40px;
+            position: relative;
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-icon {
+            margin: 0;
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .step-text {
+            margin: 0;
+            font-size: 12px;
+            width: auto;
+        }
+
+        .step-time {
+            margin: 0;
+            margin-left: auto;
+            white-space: nowrap;
+        }
 
         /* Actions Bar Stacked */
-        .order-actions-bar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 15px; }
-        .order-actions-bar > div:first-child { width: 100%; }
-        .order-actions-bar > div:last-child { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; border-top: 1px solid #f0f0f0; padding-top: 12px; }
-        .order-actions-bar .order-action-btn { flex: 1; min-width: 140px; justify-content: center; }
+        .order-actions-bar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 15px;
+        }
+
+        .order-actions-bar>div:first-child {
+            width: 100%;
+        }
+
+        .order-actions-bar>div:last-child {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-start;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 12px;
+        }
+
+        .order-actions-bar .order-action-btn {
+            flex: 1;
+            min-width: 140px;
+            justify-content: center;
+        }
     }
 </style>
 
 <main class="content">
-<section class="order-container">
-    <div class="header-with-actions" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;">
-        <h1 style="margin-bottom:0;">Your Product Orders</h1>
-        <a href="../eshop.php" class="app_more" style="margin-top:0;"><i class="fas fa-shopping-basket"></i> Continue Shopping</a>
-    </div>
-
-    <?php if (isset($_GET['message'])): ?>
-        <div style="background:#e6f4ea;color:#1e8e3e;padding:12px 16px;border-radius:8px;margin-bottom:20px;">
-            <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($_GET['message']); ?>
+    <section class="order-container">
+        <div class="header-with-actions" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;">
+            <h1 style="margin-bottom:0;">Your Product Orders</h1>
+            <a href="../eshop.php" class="app_more" style="margin-top:0;"><i class="fas fa-shopping-basket"></i> Continue Shopping</a>
         </div>
-    <?php endif; ?>
 
-    <?php if (empty($orderGroups)): ?>
-        <div style="padding:60px;text-align:center;background:white;border-radius:14px;border:2px dashed rgba(203,185,15,0.3);margin-top:20px;">
-            <i class="fas fa-box-open" style="font-size:50px;color:var(--brand);margin-bottom:20px;"></i>
-            <h3>No Orders Yet</h3>
-            <p style="color:#777;margin-bottom:30px;">You haven't placed any orders yet.</p>
-            <a href="../eshop.php" class="app_more" style="display:inline-block;margin-top:0;"><i class="fas fa-shopping-cart"></i> Start Shopping</a>
+        <div class="user-filter-section" style="margin-bottom: 30px;">
+            <?php
+            $filters = [
+                [
+                    'type' => 'text',
+                    'name' => 'search',
+                    'placeholder' => 'Search products...',
+                    'value' => $_GET['search'] ?? '',
+                    'label' => 'Product Name'
+                ],
+                [
+                    'type' => 'date',
+                    'name' => 'start_date',
+                    'label' => 'From Date',
+                    'value' => $_GET['start_date'] ?? ''
+                ],
+                [
+                    'type' => 'date',
+                    'name' => 'end_date',
+                    'label' => 'To Date',
+                    'value' => $_GET['end_date'] ?? ''
+                ],
+                [
+                    'type' => 'select',
+                    'name' => 'status',
+                    'label' => 'Status',
+                    'options' => [
+                        '' => 'All Status',
+                        'pending' => 'Pending',
+                        'confirmed' => 'Confirmed',
+                        'processing' => 'Processing',
+                        'shipped' => 'Shipped',
+                        'delivered' => 'Delivered',
+                        'cancelled' => 'Cancelled',
+                        'refunded' => 'Refunded'
+                    ],
+                    'value' => $_GET['status'] ?? ''
+                ]
+            ];
+            renderFilters($filters);
+            ?>
         </div>
-    <?php else: ?>
-        <div class="orders">
-            <?php foreach ($orderGroups as $groupKey => $orders): ?>
-                <?php $groupDate = $orders[0]['s_date']; $groupTime = $orders[0]['s_time']; ?>
-                <div class="order-group" style="margin-bottom:50px;">
-                    <h3 style="font-size:16px;color:var(--bg1);border-bottom:1px solid rgba(0,0,0,0.05);padding-bottom:12px;margin-bottom:25px;display:flex;align-items:center;gap:10px;">
-                        <span style="background:var(--brand);width:8px;height:8px;border-radius:50%;"></span>
-                        Ordered on <?php echo date('d M Y, h:i A', strtotime($groupDate . ' ' . $groupTime)); ?>
-                    </h3>
 
-                    <div class="order-items-grid">
-                        <?php foreach ($orders as $row): ?>
-                            <?php
+        <?php if (isset($_GET['message'])): ?>
+            <div style="background:#e6f4ea;color:#1e8e3e;padding:12px 16px;border-radius:8px;margin-bottom:20px;">
+                <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($_GET['message']); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (empty($orderGroups)): ?>
+            <div style="padding:60px;text-align:center;background:white;border-radius:14px;border:2px dashed rgba(203,185,15,0.3);margin-top:20px;">
+                <i class="fas fa-box-open" style="font-size:50px;color:var(--brand);margin-bottom:20px;"></i>
+                <h3>No Orders Yet</h3>
+                <p style="color:#777;margin-bottom:30px;">You haven't placed any orders yet.</p>
+                <a href="../eshop.php" class="app_more" style="display:inline-block;margin-top:0;"><i class="fas fa-shopping-cart"></i> Start Shopping</a>
+            </div>
+        <?php else: ?>
+            <div class="orders">
+                <?php foreach ($orderGroups as $groupKey => $orders): ?>
+                    <?php $groupDate = $orders[0]['s_date'];
+                    $groupTime = $orders[0]['s_time']; ?>
+                    <div class="order-group" style="margin-bottom:50px;">
+                        <h3 style="font-size:16px;color:var(--bg1);border-bottom:1px solid rgba(0,0,0,0.05);padding-bottom:12px;margin-bottom:25px;display:flex;align-items:center;gap:10px;">
+                            <span style="background:var(--brand);width:8px;height:8px;border-radius:50%;"></span>
+                            Ordered on <?php echo date('d M Y, h:i A', strtotime($groupDate . ' ' . $groupTime)); ?>
+                        </h3>
+
+                        <div class="order-items-grid">
+                            <?php foreach ($orders as $row): ?>
+                                <?php
                                 $lookupKey = strtolower(trim($row['s_name'])) . '|' . strtolower(trim($row['s_size']));
                                 $productUrl = isset($productLookup[$lookupKey]) ? "../product_display.php?id=" . $productLookup[$lookupKey] : '';
                                 $currentStatus = strtolower(trim($row['s_status']));
@@ -191,51 +427,59 @@ function getStepIcon($step) {
                                 $finalTotal = (float) $row['s_total'];
 
                                 if ($currentStatus === 'delivered') {
-                                    $statusBg = '#e6f4ea'; $statusColor = '#1e8e3e'; $statusIcon = 'fa-check-circle';
+                                    $statusBg = '#e6f4ea';
+                                    $statusColor = '#1e8e3e';
+                                    $statusIcon = 'fa-check-circle';
                                 } elseif ($currentStatus === 'cancelled' && in_array($paymentMethod, ['stripe', 'wallet'], true) && $paymentStatus !== 'refunded') {
-                                    $statusBg = '#fef7e0'; $statusColor = '#b06000'; $statusIcon = 'fa-hourglass-half';
+                                    $statusBg = '#fef7e0';
+                                    $statusColor = '#b06000';
+                                    $statusIcon = 'fa-hourglass-half';
                                 } elseif ($currentStatus === 'cancelled' || $currentStatus === 'refunded') {
-                                    $statusBg = '#fce8e6'; $statusColor = '#d93025'; $statusIcon = $currentStatus === 'refunded' ? 'fa-wallet' : 'fa-times-circle';
+                                    $statusBg = '#fce8e6';
+                                    $statusColor = '#d93025';
+                                    $statusIcon = $currentStatus === 'refunded' ? 'fa-wallet' : 'fa-times-circle';
                                 } else {
-                                    $statusBg = '#fef9c3'; $statusColor = '#854d0e'; $statusIcon = 'fa-info-circle';
+                                    $statusBg = '#fef9c3';
+                                    $statusColor = '#854d0e';
+                                    $statusIcon = 'fa-info-circle';
                                 }
 
                                 $statusLabel = ucfirst($currentStatus);
                                 if ($currentStatus === 'cancelled' && in_array($paymentMethod, ['stripe', 'wallet'], true) && $paymentStatus !== 'refunded') {
                                     $statusLabel = 'Refund In Progress';
                                 }
-                            ?>
-                            <div class="order-card-modern">
-                                <div class="card-top">
-                                    <div class="order-img-container">
-                                        <img src="../upload_product_photos/<?php echo htmlspecialchars($row['s_img']); ?>" alt="Product" style="width:100%;height:100%;object-fit:cover;">
-                                    </div>
+                                ?>
+                                <div class="order-card-modern">
+                                    <div class="card-top">
+                                        <div class="order-img-container">
+                                            <img src="../upload_product_photos/<?php echo htmlspecialchars($row['s_img']); ?>" alt="Product" style="width:100%;height:100%;object-fit:cover;">
+                                        </div>
 
-                                    <div class="order-info-container">
-                                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-                                            <div>
-                                                <?php if ($productUrl): ?>
-                                                    <h2 style="font-size:18px;margin:0;"><a href="<?php echo htmlspecialchars($productUrl); ?>" class="order-product-link"><?php echo htmlspecialchars($row['s_name']); ?></a></h2>
-                                                <?php else: ?>
-                                                    <h2 style="font-size:18px;color:var(--bg1);margin:0;"><?php echo htmlspecialchars($row['s_name']); ?></h2>
-                                                <?php endif; ?>
-                                                <?php if ($originalTotal > $finalTotal): ?>
-                                                    <div style="font-size:12px;color:#777;text-decoration:line-through;">₹<?php echo number_format($originalTotal, 2); ?></div>
-                                                <?php endif; ?>
+                                        <div class="order-info-container">
+                                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                                                <div>
+                                                    <?php if ($productUrl): ?>
+                                                        <h2 style="font-size:18px;margin:0;"><a href="<?php echo htmlspecialchars($productUrl); ?>" class="order-product-link"><?php echo htmlspecialchars($row['s_name']); ?></a></h2>
+                                                    <?php else: ?>
+                                                        <h2 style="font-size:18px;color:var(--bg1);margin:0;"><?php echo htmlspecialchars($row['s_name']); ?></h2>
+                                                    <?php endif; ?>
+                                                    <?php if ($originalTotal > $finalTotal): ?>
+                                                        <div style="font-size:12px;color:#777;text-decoration:line-through;">₹<?php echo number_format($originalTotal, 2); ?></div>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <span style="font-weight:700;color:var(--brand);font-size:18px;">₹<?php echo number_format($finalTotal, 2); ?></span>
                                             </div>
-                                            <span style="font-weight:700;color:var(--brand);font-size:18px;">₹<?php echo number_format($finalTotal, 2); ?></span>
-                                        </div>
 
-                                        <div style="color:#666;font-size:14px;margin-bottom:8px;">
-                                            <span style="margin-right:15px;"><i class="fas fa-tag"></i> Size: <?php echo htmlspecialchars($row['s_size']); ?></span>
-                                            <span style="margin-right:15px;"><i class="fas fa-boxes"></i> Qty: <?php echo (int) $row['s_quantity']; ?></span>
-                                            <span><i class="fas fa-credit-card"></i> <?php echo strtoupper($paymentMethod); ?> / <?php echo strtoupper($paymentStatus); ?></span>
-                                        </div>
+                                            <div style="color:#666;font-size:14px;margin-bottom:8px;">
+                                                <span style="margin-right:15px;"><i class="fas fa-tag"></i> Size: <?php echo htmlspecialchars($row['s_size']); ?></span>
+                                                <span style="margin-right:15px;"><i class="fas fa-boxes"></i> Qty: <?php echo (int) $row['s_quantity']; ?></span>
+                                                <span><i class="fas fa-credit-card"></i> <?php echo strtoupper($paymentMethod); ?> / <?php echo strtoupper($paymentStatus); ?></span>
+                                            </div>
 
-                                        <div class="order-tracking-container">
-                                            <div class="tracking-steps">
-                                                <?php foreach ($steps as $step): ?>
-                                                    <?php
+                                            <div class="order-tracking-container">
+                                                <div class="tracking-steps">
+                                                    <?php foreach ($steps as $step): ?>
+                                                        <?php
                                                         $historyKey = strtolower($step);
                                                         $isActive = isset($row['history'][$historyKey]) || $currentStatus === $historyKey || ($historyKey === 'refunded' && $paymentStatus === 'refunded');
                                                         $displayTime = '';
@@ -245,45 +489,45 @@ function getStepIcon($step) {
                                                                 strtotime($row['history'][$historyKey]['update_date'] . ' ' . $row['history'][$historyKey]['update_time'])
                                                             );
                                                         }
-                                                    ?>
-                                                    <div class="step <?php echo $isActive ? 'active' : ''; ?>">
-                                                        <div class="step-icon"><i class="fas <?php echo getStepIcon($step); ?>"></i></div>
-                                                        <div class="step-text"><?php echo $step; ?></div>
-                                                        <div class="step-time"><?php echo $displayTime; ?></div>
-                                                    </div>
-                                                <?php endforeach; ?>
+                                                        ?>
+                                                        <div class="step <?php echo $isActive ? 'active' : ''; ?>">
+                                                            <div class="step-icon"><i class="fas <?php echo getStepIcon($step); ?>"></i></div>
+                                                            <div class="step-text"><?php echo $step; ?></div>
+                                                            <div class="step-time"><?php echo $displayTime; ?></div>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div class="order-actions-bar">
-                                    <div>
-                                        <span style="background:<?php echo $statusBg; ?>;color:<?php echo $statusColor; ?>;font-size:12px;padding:6px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
-                                            <i class="fas <?php echo $statusIcon; ?>"></i> Status: <?php echo $statusLabel; ?>
-                                        </span>
-                                    </div>
-                                    <div style="display:flex;gap:10px;">
-                                        <a href="invoice.php?time=<?php echo urlencode($row['s_time']); ?>" class="order-action-btn order-action-primary" style="padding:8px 15px;font-size:13px;">
-                                            <i class="fas fa-file-invoice"></i> Download Invoice
-                                        </a>
+                                    <div class="order-actions-bar">
+                                        <div>
+                                            <span style="background:<?php echo $statusBg; ?>;color:<?php echo $statusColor; ?>;font-size:12px;padding:6px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                                                <i class="fas <?php echo $statusIcon; ?>"></i> Status: <?php echo $statusLabel; ?>
+                                            </span>
+                                        </div>
+                                        <div style="display:flex;gap:10px;">
+                                            <a href="invoice.php?time=<?php echo urlencode($row['s_time']); ?>" class="order-action-btn order-action-primary" style="padding:8px 15px;font-size:13px;">
+                                                <i class="fas fa-file-invoice"></i> Download Invoice
+                                            </a>
 
-                                        <?php if ($canCancelOrder): ?>
-                                            <form action="cancel_order.php" method="get" style="margin:0;">
-                                                <input type="hidden" name="id" value="<?php echo (int) $row['s_id']; ?>">
-                                                <button type="submit" class="order-action-btn order-action-danger" style="padding:8px 15px;font-size:13px;" onclick="return confirm('Cancel this order?')">
-                                                    <i class="fas fa-ban"></i> Cancel Order
-                                                </button>
-                                            </form>
-                                        <?php endif; ?>
+                                            <?php if ($canCancelOrder): ?>
+                                                <form action="cancel_order.php" method="get" style="margin:0;">
+                                                    <input type="hidden" name="id" value="<?php echo (int) $row['s_id']; ?>">
+                                                    <button type="submit" class="order-action-btn order-action-danger" style="padding:8px 15px;font-size:13px;" onclick="return confirm('Cancel this order?')">
+                                                        <i class="fas fa-ban"></i> Cancel Order
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-</section>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
 </main>

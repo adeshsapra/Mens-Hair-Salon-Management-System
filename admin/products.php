@@ -4,6 +4,7 @@ include('header.php');
 include('connect.php');
 require_once('pagination_helper.php');
 require_once('page_header_helper.php');
+require_once('filter_helper.php');
 
 function buildProductsRedirectUrl(string $type, string $message, bool $openCategories, int $page): string
 {
@@ -41,20 +42,27 @@ if ($category_column_check && mysqli_num_rows($category_column_check) > 0) {
     $category_column_ready = true;
 }
 
+// Filter Configuration
+$filterConfig = [
+    'search' => ['col' => 'p_name', 'type' => 'like'],
+    'category' => ['col' => 'category_id', 'type' => 'equals']
+];
+$whereClause = buildSimpleWhere($con, $filterConfig);
+
+// Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['category_action'])) {
+    // ... rest of action handling ...
     $open_categories_modal = true;
-    $redirect_page = isset($_POST['redirect_page']) ? (int) $_POST['redirect_page'] : $requested_page;
-    if ($redirect_page < 1) {
-        $redirect_page = 1;
-    }
+    $redirect_page = isset($_POST['redirect_page']) ? (int)$_POST['redirect_page'] : $requested_page;
+    if ($redirect_page < 1) $redirect_page = 1;
 
     if (!$category_table_ready || !$category_column_ready) {
         $category_messages[] = 'Category setup is not complete. Run setup_product_categories_table.php once, then retry.';
     } else {
-        $category_action = strtolower(trim((string) $_POST['category_action']));
+        $category_action = strtolower(trim((string)$_POST['category_action']));
 
         if ($category_action === 'add') {
-            $category_name = trim((string) ($_POST['category_name'] ?? ''));
+            $category_name = trim((string)($_POST['category_name'] ?? ''));
             if ($category_name === '') {
                 $category_messages[] = 'Category name is required.';
             } elseif (strlen($category_name) > 120) {
@@ -108,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['category_action'])) {
                 }
             }
         } elseif ($category_action === 'delete') {
-            $category_id = isset($_POST['category_id']) ? (int) $_POST['category_id'] : 0;
+            $category_id = isset($_POST['category_id']) ? (int)$_POST['category_id'] : 0;
             if ($category_id <= 0) {
                 $category_messages[] = 'Invalid category selected for delete.';
             } else {
@@ -126,20 +134,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['category_action'])) {
                     $category_messages[] = 'Could not prepare category delete query.';
                 }
             }
-        } else {
-            $category_messages[] = 'Invalid category action.';
         }
     }
 }
 
 $categories = [];
 $category_lookup = [];
+$category_options = ['' => 'All Categories'];
 if ($category_table_ready) {
     $category_result = mysqli_query($con, 'SELECT category_id, category_name FROM product_categories ORDER BY category_name ASC');
     if ($category_result) {
         while ($category_row = mysqli_fetch_assoc($category_result)) {
             $categories[] = $category_row;
             $category_lookup[(int) $category_row['category_id']] = $category_row['category_name'];
+            $category_options[$category_row['category_id']] = $category_row['category_name'];
         }
     }
 }
@@ -148,7 +156,7 @@ if ($category_table_ready) {
 $records_per_page = 10;
 $current_page = $requested_page;
 
-$count_query = 'SELECT COUNT(*) AS total FROM products';
+$count_query = "SELECT COUNT(*) AS total FROM products $whereClause";
 $count_result = mysqli_query($con, $count_query);
 $count_row = mysqli_fetch_assoc($count_result);
 $total_records = (int) $count_row['total'];
@@ -160,9 +168,9 @@ if ($current_page > $total_pages) {
 
 $offset = ($current_page - 1) * $records_per_page;
 
-$query = "SELECT * FROM products ORDER BY p_id DESC LIMIT $offset, $records_per_page";
+$query = "SELECT * FROM products $whereClause ORDER BY p_id DESC LIMIT $offset, $records_per_page";
 $all_product = $con->query($query);
-$has_products = mysqli_num_rows($all_product) > 0;
+$has_products = $all_product && mysqli_num_rows($all_product) > 0;
 ?>
 
 <?php
@@ -174,13 +182,42 @@ renderAdminPageIntro(
 ?>
 
 <div class="main-content">
+    <div class="content" style="background: transparent; box-shadow: none; padding: 0;">
+        <?php
+        $filters = [
+            [
+                'type' => 'text',
+                'name' => 'search',
+                'placeholder' => 'Search products...',
+                'value' => $_GET['search'] ?? '',
+                'label' => 'Product Name'
+            ],
+            [
+                'type' => 'select',
+                'name' => 'category',
+                'label' => 'Category',
+                'options' => $category_options,
+                'value' => $_GET['category'] ?? ''
+            ]
+        ];
+        renderFilters($filters);
+        ?>
+    </div>
+
     <div class="content">
         <?php foreach ($category_messages as $msg): ?>
             <div class="message"><?php echo htmlspecialchars($msg); ?></div>
         <?php endforeach; ?>
 
         <div class="page-section-toolbar">
-            <h2>Product Catalog</h2>
+            <div style="display: flex; flex-direction: column;">
+                <h2 style="margin: 0;">Product Catalog</h2>
+                <?php if (!empty($whereClause)): ?>
+                    <span class="filter-indicator" style="margin-top: 5px;">
+                        <i class="fas fa-filter"></i> <strong><?php echo $total_records; ?></strong> products match filters
+                    </span>
+                <?php endif; ?>
+            </div>
             <div class="product-toolbar-actions">
                 <a href="combos.php" class="add-service-btn">
                     <i class="fas fa-layer-group"></i> Manage Combos
@@ -243,10 +280,14 @@ renderAdminPageIntro(
                     </div>
                 <?php } ?>
             <?php else: ?>
-                <p>No products found.</p>
+                <p>No products found matching your filters.</p>
             <?php endif; ?>
 
-            <?php echo renderPagination($total_records, $current_page, $records_per_page, 'products.php'); ?>
+            <?php 
+            $params = $_GET;
+            unset($params['page']);
+            echo renderPagination($total_records, $current_page, $records_per_page, 'products.php', $params); 
+            ?>
         </div>
     </div>
 </div>

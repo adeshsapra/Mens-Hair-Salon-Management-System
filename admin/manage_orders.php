@@ -5,6 +5,18 @@ include('connect.php');
 require_once '../user/wallet_helpers.php';
 require_once 'pagination_helper.php';
 require_once 'page_header_helper.php';
+require_once 'filter_helper.php';
+
+// Filter Configuration
+$filterConfig = [
+    'search_customer' => ['type' => 'search', 'cols' => ['pay.p_name']],
+    'search_product' => ['col' => 'ps.s_name', 'type' => 'like'],
+    'status' => ['col' => 'ps.s_status', 'type' => 'equals'],
+    'start_date' => ['col' => 'pay.p_date', 'type' => 'date_start'],
+    'end_date' => ['col' => 'pay.p_date', 'type' => 'date_end']
+];
+
+$whereClause = buildSimpleWhere($con, $filterConfig);
 
 // Handle actions
 if (isset($_GET['action']) && isset($_GET['s_id'])) {
@@ -130,8 +142,8 @@ $current_page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($current_page < 1) $current_page = 1;
 $offset = ($current_page - 1) * $records_per_page;
 
-// Count total records
-$count_query = "SELECT COUNT(*) as total FROM product_sales";
+// Count total records with filters and joins
+$count_query = "SELECT COUNT(*) as total FROM product_sales ps LEFT JOIN payment pay ON ps.s_id = pay.s_id $whereClause";
 $count_result = mysqli_query($con, $count_query);
 $count_row = mysqli_fetch_assoc($count_result);
 $total_records = $count_row['total'];
@@ -139,6 +151,7 @@ $total_records = $count_row['total'];
 $orders = "SELECT ps.*, pay.p_name, pay.p_phno, pay.p_address, pay.p_city, pay.p_state, pay.p_pincode, pay.p_method, pay.p_status as payment_status, pay.stripe_payment_intent_id 
            FROM product_sales ps 
            LEFT JOIN payment pay ON ps.s_id = pay.s_id 
+           $whereClause
            ORDER BY ps.s_id DESC
            LIMIT $offset, $records_per_page";
 $orders_data = mysqli_query($con, $orders);
@@ -420,8 +433,65 @@ $orders_data = mysqli_query($con, $orders);
     ?>
 
     <div class="main-content">
+        <div class="content" style="background: transparent; box-shadow: none; padding: 0;">
+            <?php
+            $filters = [
+                [
+                    'type' => 'text',
+                    'name' => 'search_customer',
+                    'placeholder' => 'Customer Name...',
+                    'value' => $_GET['search_customer'] ?? '',
+                    'label' => 'Customer'
+                ],
+                [
+                    'type' => 'text',
+                    'name' => 'search_product',
+                    'placeholder' => 'Product Name...',
+                    'value' => $_GET['search_product'] ?? '',
+                    'label' => 'Product'
+                ],
+                [
+                    'type' => 'date',
+                    'name' => 'start_date',
+                    'label' => 'Start Date',
+                    'value' => $_GET['start_date'] ?? ''
+                ],
+                [
+                    'type' => 'date',
+                    'name' => 'end_date',
+                    'label' => 'End Date',
+                    'value' => $_GET['end_date'] ?? ''
+                ],
+                [
+                    'type' => 'select',
+                    'name' => 'status',
+                    'label' => 'Status',
+                    'options' => [
+                        '' => 'All Status',
+                        'pending' => 'Pending',
+                        'confirmed' => 'Confirmed',
+                        'processing' => 'Processing',
+                        'shipped' => 'Shipped',
+                        'delivered' => 'Delivered',
+                        'cancelled' => 'Cancelled',
+                        'refunded' => 'Refunded'
+                    ],
+                    'value' => $_GET['status'] ?? ''
+                ]
+            ];
+            renderFilters($filters);
+            ?>
+        </div>
+
         <div class="content">
-            <h2>Order Records</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Order Records</h2>
+                <?php if (!empty($whereClause)): ?>
+                    <span class="filter-indicator">
+                        <i class="fas fa-filter"></i> Filters Applied: <strong><?php echo $total_records; ?></strong> matches found
+                    </span>
+                <?php endif; ?>
+            </div>
             <div class="table-container">
                 <table>
                     <thead>
@@ -511,7 +581,9 @@ $orders_data = mysqli_query($con, $orders);
             </div>
             <?php 
             // Display Pagination Links
-            echo renderPagination($total_records, $current_page, $records_per_page, 'manage_orders.php'); 
+            $params = $_GET;
+            unset($params['page']);
+            echo renderPagination($total_records, $current_page, $records_per_page, 'manage_orders.php', $params); 
             ?>
         </div>
     </div>

@@ -4,6 +4,14 @@ include('header.php');
 include('connect.php');
 require_once('pagination_helper.php');
 require_once('page_header_helper.php');
+require_once('filter_helper.php');
+
+// Filter Configuration
+$filterConfig = [
+    'search' => ['type' => 'search', 'cols' => ['name', 'email', 'username']]
+];
+
+$whereClause = buildSimpleWhere($con, $filterConfig);
 
 // Pagination Logic
 $records_per_page = 10;
@@ -12,13 +20,13 @@ if ($current_page < 1) $current_page = 1;
 $offset = ($current_page - 1) * $records_per_page;
 
 // Count total records
-$count_query = "SELECT COUNT(*) as total FROM user_reg";
+$count_query = "SELECT COUNT(*) as total FROM user_reg $whereClause";
 $count_result = mysqli_query($con, $count_query);
 $count_row = mysqli_fetch_assoc($count_result);
 $total_records = $count_row['total'];
 
 // Fetch paginated data
-$user = "SELECT * FROM user_reg LIMIT $offset, $records_per_page";
+$user = "SELECT * FROM user_reg $whereClause ORDER BY id DESC LIMIT $offset, $records_per_page";
 $user_data = mysqli_query($con, $user);
 
 ?>
@@ -59,9 +67,33 @@ renderAdminPageIntro(
     'Review customer profiles, account details, and perform account actions with full visibility.'
 );
 ?>
+
 <div class="main-content">
-        <div class="content">
-        <h2>Customer Directory</h2>
+    <div class="content" style="background: transparent; box-shadow: none; padding: 0;">
+        <?php
+        $filters = [
+            [
+                'type' => 'text',
+                'name' => 'search',
+                'placeholder' => 'Search Name, Email or Username...',
+                'value' => $_GET['search'] ?? '',
+                'label' => 'Search Clients'
+            ]
+        ];
+        renderFilters($filters);
+        ?>
+    </div>
+
+    <div class="content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Customer Directory</h2>
+            <?php if (!empty($whereClause)): ?>
+                <span class="filter-indicator">
+                    <i class="fas fa-filter"></i> Filters Applied: <strong><?php echo $total_records; ?></strong> matches found
+                </span>
+            <?php endif; ?>
+        </div>
+
                 <div class="table-container">
                     <table>
                         <thead>
@@ -109,7 +141,9 @@ renderAdminPageIntro(
                 
                 <?php 
                 // Display Pagination Links
-                echo renderPagination($total_records, $current_page, $records_per_page, 'customer.php'); 
+                $params = $_GET;
+                unset($params['page']);
+                echo renderPagination($total_records, $current_page, $records_per_page, 'customer.php', $params); 
                 ?>
         </div>
 </div>

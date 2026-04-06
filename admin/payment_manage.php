@@ -3,6 +3,25 @@ include('header.php');
 include('connect.php');
 require_once('pagination_helper.php');
 require_once('page_header_helper.php');
+require_once('filter_helper.php');
+
+$filterConfig = [
+    'search' => ['type' => 'search', 'cols' => ['p.p_name', 'ur.name', 'ur.username']],
+    'start_date' => ['col' => 'p.p_date', 'type' => 'date_start'],
+    'end_date' => ['col' => 'p.p_date', 'type' => 'date_end'],
+    'status' => ['col' => 'p.p_status', 'type' => 'equals'],
+    'method' => ['col' => 'p.p_method', 'type' => 'equals'],
+    'category' => [
+        'type' => 'custom',
+        'handler' => function($con, $val) {
+            if ($val === 'membership') return "p.m_id IS NOT NULL AND (p.s_id IS NULL OR p.s_id = 0)";
+            if ($val === 'product') return "p.s_id IS NOT NULL AND (p.m_id IS NULL OR p.m_id = 0)";
+            return "";
+        }
+    ]
+];
+
+$whereClause = buildSimpleWhere($con, $filterConfig);
 
 $records_per_page = 10;
 $current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
@@ -10,7 +29,7 @@ if ($current_page < 1) {
     $current_page = 1;
 }
 
-$count_query = "SELECT COUNT(*) AS total FROM payment";
+$count_query = "SELECT COUNT(*) AS total FROM payment p LEFT JOIN user_reg ur ON p.id = ur.id $whereClause";
 $count_result = mysqli_query($con, $count_query);
 $count_row = $count_result ? mysqli_fetch_assoc($count_result) : ['total' => 0];
 $total_records = (int) ($count_row['total'] ?? 0);
@@ -33,6 +52,7 @@ $payment_query = "
     LEFT JOIN product_sales ps ON p.s_id = ps.s_id
     LEFT JOIN membership_plans mp ON p.m_id = mp.mp_id
     LEFT JOIN user_reg ur ON p.id = ur.id
+    $whereClause
     ORDER BY p.pay_id DESC
     LIMIT {$offset}, {$records_per_page}
 ";
@@ -172,8 +192,77 @@ renderAdminPageIntro(
 );
 ?>
 <div class="main-content">
+    <div class="content" style="background: transparent; box-shadow: none; padding: 0;">
+        <?php
+        $filters = [
+            [
+                'type' => 'text',
+                'name' => 'search',
+                'placeholder' => 'Search by Customer...',
+                'value' => $_GET['search'] ?? '',
+                'label' => 'Search'
+            ],
+            [
+                'type' => 'date',
+                'name' => 'start_date',
+                'label' => 'Start Date',
+                'value' => $_GET['start_date'] ?? ''
+            ],
+            [
+                'type' => 'date',
+                'name' => 'end_date',
+                'label' => 'End Date',
+                'value' => $_GET['end_date'] ?? ''
+            ],
+            [
+                'type' => 'select',
+                'name' => 'method',
+                'label' => 'Method',
+                'options' => [
+                    '' => 'All Methods',
+                    'stripe' => 'Stripe',
+                    'cod' => 'COD',
+                    'wallet' => 'Wallet'
+                ],
+                'value' => $_GET['method'] ?? ''
+            ],
+            [
+                'type' => 'select',
+                'name' => 'category',
+                'label' => 'Payment Type',
+                'options' => [
+                    '' => 'All Payments',
+                    'product' => 'Products Only',
+                    'membership' => 'Memberships Only'
+                ],
+                'value' => $_GET['category'] ?? ''
+            ],
+            [
+                'type' => 'select',
+                'name' => 'status',
+                'label' => 'Status',
+                'options' => [
+                    '' => 'All Status',
+                    'pending' => 'Pending',
+                    'paid' => 'Paid',
+                    'cancelled' => 'Cancelled'
+                ],
+                'value' => $_GET['status'] ?? ''
+            ]
+        ];
+        renderFilters($filters);
+        ?>
+    </div>
+
     <div class="content">
-        <h2>Unified Payment Transactions</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Unified Payment Transactions</h2>
+            <?php if (!empty($whereClause)): ?>
+                <span class="filter-indicator">
+                    <i class="fas fa-filter"></i> Filters Applied: <strong><?php echo $total_records; ?></strong> matches found
+                </span>
+            <?php endif; ?>
+        </div>
         <div class="table-container">
             <table>
                 <thead>
@@ -320,7 +409,11 @@ renderAdminPageIntro(
                 ?>
                 </tbody>
             </table>
-            <?php echo renderPagination($total_records, $current_page, $records_per_page, 'payment_manage.php'); ?>
+            <?php 
+            $params = $_GET;
+            unset($params['page']);
+            echo renderPagination($total_records, $current_page, $records_per_page, 'payment_manage.php', $params); 
+            ?>
         </div>
     </div>
 </div>

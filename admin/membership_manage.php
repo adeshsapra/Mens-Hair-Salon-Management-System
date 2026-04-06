@@ -2,6 +2,7 @@
 include('header.php');
 include('connect.php');
 require_once('page_header_helper.php');
+require_once('filter_helper.php');
 
 mysqli_query(
     $con,
@@ -45,6 +46,12 @@ $active_tab = isset($_GET['tab']) ? strtolower(trim($_GET['tab'])) : 'royal';
 if (!isset($membership_config[$active_tab])) {
     $active_tab = 'royal';
 }
+
+// Filter Configuration
+$filterConfig = [
+    'search' => ['col' => 'display_name', 'type' => 'like']
+];
+$filterWhere = buildSimpleWhere($con, $filterConfig, " AND ");
 
 function membership_collect_features_from_post(): array
 {
@@ -163,10 +170,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['membership_action'], 
 $membership_rows = [];
 foreach (array_keys($membership_config) as $pk) {
     $membership_rows[$pk] = [];
-    $stmt = mysqli_prepare(
-        $con,
-        'SELECT mp_id, pass_key, display_name, billing_plan, price, features_json, is_featured FROM membership_plans WHERE pass_key = ? ORDER BY billing_plan DESC'
-    );
+    $query = "SELECT mp_id, pass_key, display_name, billing_plan, price, features_json, is_featured FROM membership_plans WHERE pass_key = ? $filterWhere ORDER BY billing_plan DESC";
+    $stmt = mysqli_prepare($con, $query);
     if ($stmt) {
         mysqli_stmt_bind_param($stmt, 's', $pk);
         mysqli_stmt_execute($stmt);
@@ -207,352 +212,546 @@ renderAdminPageIntro(
 );
 ?>
 
-    <div class="main-content">
-        <div class="content membership-content-shell">
-            <?php foreach ($messages as $msg): ?>
-                <div class="message"><?php echo htmlspecialchars($msg); ?></div>
-            <?php endforeach; ?>
+<div class="main-content">
+    <div class="content" style="background: transparent; box-shadow: none; padding: 0;">
+        <?php
+        $filters = [
+            [
+                'type' => 'text',
+                'name' => 'search',
+                'placeholder' => 'Search plan name...',
+                'value' => $_GET['search'] ?? '',
+                'label' => 'Search Plans'
+            ]
+        ];
+        renderFilters($filters, '', ['tab' => $active_tab]);
+        ?>
+    </div>
+    <div class="content membership-content-shell">
+        <?php foreach ($messages as $msg): ?>
+            <div class="message"><?php echo htmlspecialchars($msg); ?></div>
+        <?php endforeach; ?>
 
-            <div class="tabs-container membership-tabs-container">
-                <div class="tab-header">
-                    <?php foreach ($membership_config as $type => $cfg): ?>
-                        <button
-                            type="button"
-                            class="tab-btn membership-tab-btn <?php echo $active_tab === $type ? 'active' : ''; ?>"
-                            data-target="membership-<?php echo $type; ?>"
-                        >
-                            <?php echo htmlspecialchars($cfg['title']); ?>
-                        </button>
-                    <?php endforeach; ?>
-                </div>
-
-                <?php foreach ($membership_config as $type => $cfg): ?>
-                    <div id="membership-<?php echo $type; ?>" class="tab-content membership-tab-content <?php echo $active_tab === $type ? 'active' : ''; ?>">
-                        <div class="tab-top">
-                            <h3><?php echo htmlspecialchars($cfg['title']); ?> plans</h3>
-                            <button type="button" class="add-service-btn" onclick="openMembershipAddModal('<?php echo htmlspecialchars($type); ?>')">
-                                <i class="fas fa-plus"></i> Add plan
-                            </button>
-                        </div>
-
-                        <p class="membership-tab-intro"><?php echo htmlspecialchars($cfg['description']); ?></p>
-
-                        <div class="service-table-wrapper">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Name</th>
-                                        <th>Plan</th>
-                                        <th>Price</th>
-                                        <th>Features (preview)</th>
-                                        <th>Highlight</th>
-                                        <th style="text-align: right;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (!empty($membership_rows[$type])): ?>
-                                        <?php $row_number = 1; ?>
-                                        <?php foreach ($membership_rows[$type] as $row): ?>
-                                            <?php
-                                                $record_id = (int) $row['mp_id'];
-                                                $record_name = $row['display_name'];
-                                                $record_plan = $row['billing_plan'];
-                                                $record_price = (int) $row['price'];
-                                                $record_featured = (int) ($row['is_featured'] ?? 0) === 1;
-                                                $edit_payload = [
-                                                    'id' => $record_id,
-                                                    'pass_key' => $type,
-                                                    'display_name' => $record_name,
-                                                    'billing_plan' => $record_plan,
-                                                    'price' => $record_price,
-                                                    'is_featured' => $record_featured,
-                                                    'features' => json_decode($row['features_json'], true),
-                                                ];
-                                                if (!is_array($edit_payload['features'])) {
-                                                    $edit_payload['features'] = [];
-                                                }
-                                            ?>
-                                            <tr>
-                                                <td><?php echo $row_number++; ?></td>
-                                                <td><?php echo htmlspecialchars($record_name); ?></td>
-                                                <td><?php echo htmlspecialchars(ucfirst($record_plan)); ?></td>
-                                                <td>₹<?php echo number_format($record_price, 0); ?></td>
-                                                <td class="membership-features-preview"><?php echo htmlspecialchars(membership_features_preview($row['features_json'])); ?></td>
-                                                <td><?php echo $record_featured ? '<span title="Shown as highlighted on the public membership page"><i class="fas fa-star" style="color:#cbb90f;"></i> Yes</span>' : '—'; ?></td>
-                                                <td>
-                                                    <div class="services-buttons">
-                                                        <button
-                                                            type="button"
-                                                            class="service-update"
-                                                            onclick="openMembershipEditModal(<?php echo htmlspecialchars(json_encode($edit_payload), ENT_QUOTES, 'UTF-8'); ?>)"
-                                                            title="Edit plan"
-                                                            aria-label="Edit plan"
-                                                        >
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-
-                                                        <form method="post" class="inline-action-form">
-                                                            <input type="hidden" name="membership_action" value="delete">
-                                                            <input type="hidden" name="pass_key" value="<?php echo htmlspecialchars($type); ?>">
-                                                            <input type="hidden" name="mp_id" value="<?php echo $record_id; ?>">
-                                                            <button
-                                                                type="submit"
-                                                                class="service-delete"
-                                                                title="Delete plan"
-                                                                aria-label="Delete plan"
-                                                                onclick="return confirm('Delete this entire plan (all features and price)?');"
-                                                            >
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="7" class="membership-empty-state">No plans yet. Add a yearly or monthly package, or run <code>admin/setup_membership_plans_table.php</code> to import legacy rows.</td>
-                                        </tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+        <div class="tabs-container membership-tabs-container">
+            <div class="tab-header">
+                <?php
+                $currentSearch = $_GET['search'] ?? '';
+                foreach ($membership_config as $type => $cfg):
+                    $tabUrl = "membership_manage.php?tab=" . urlencode($type);
+                    if ($currentSearch !== '') {
+                        $tabUrl .= "&search=" . urlencode($currentSearch);
+                    }
+                ?>
+                    <a
+                        href="<?php echo $tabUrl; ?>"
+                        class="tab-btn membership-tab-btn <?php echo $active_tab === $type ? 'active' : ''; ?>">
+                        <?php echo htmlspecialchars($cfg['title']); ?>
+                    </a>
                 <?php endforeach; ?>
             </div>
-        </div>
-    </div>
 
-    <div class="modal-overlay" id="membership_add_modal">
-        <div class="modal-box membership-plan-modal">
-            <div class="modal-header">
-                <h3 id="membership_add_modal_title">Add membership plan</h3>
-                <button type="button" class="close-modal" onclick="closeModal('membership_add_modal')">&times;</button>
-            </div>
-            <form class="modal-form" method="post" id="membership_add_form">
-                <input type="hidden" name="membership_action" value="add">
-                <input type="hidden" name="pass_key" id="membership_add_pass_key" value="royal">
-
-                <label for="membership_add_name">Name</label>
-                <input type="text" id="membership_add_name" name="display_name" placeholder="e.g. Royal Pass" required>
-
-                <label for="membership_add_plan">Billing plan</label>
-                <select id="membership_add_plan" name="billing_plan" required>
-                    <option value="yearly">Yearly</option>
-                    <option value="monthly">Monthly</option>
-                </select>
-
-                <label for="membership_add_price">Price (₹)</label>
-                <input type="number" id="membership_add_price" name="price" min="0" step="1" placeholder="0" required>
-
-                <label class="membership-checkbox-label">
-                    <input type="checkbox" id="membership_add_featured" name="is_featured" value="1">
-                    Highlight on website (e.g. most popular plan)
-                </label>
-
-                <div class="membership-features-block">
-                    <div class="membership-features-head">
-                        <label>Features</label>
-                        <button type="button" class="membership-add-feature-btn" onclick="addMembershipFeatureRow('membership_add_features')" aria-label="Add feature line">
-                            <i class="fas fa-plus"></i>
+            <?php foreach ($membership_config as $type => $cfg): ?>
+                <div id="membership-<?php echo $type; ?>" class="tab-content membership-tab-content <?php echo $active_tab === $type ? 'active' : ''; ?>">
+                    <div class="tab-top">
+                        <h3><?php echo htmlspecialchars($cfg['title']); ?> plans</h3>
+                        <button type="button" class="add-service-btn" onclick="openMembershipAddModal('<?php echo htmlspecialchars($type); ?>')">
+                            <i class="fas fa-plus"></i> Add plan
                         </button>
                     </div>
-                    <p class="membership-features-hint">Add all benefit lines for this plan; they are saved together as one package.</p>
-                    <div id="membership_add_features" class="membership-features-list"></div>
-                </div>
 
-                <button type="submit" class="modal-submit-btn">Save plan</button>
-            </form>
-        </div>
-    </div>
+                    <p class="membership-tab-intro"><?php echo htmlspecialchars($cfg['description']); ?></p>
 
-    <div class="modal-overlay" id="membership_edit_modal">
-        <div class="modal-box membership-plan-modal">
-            <div class="modal-header">
-                <h3 id="membership_edit_modal_title">Edit membership plan</h3>
-                <button type="button" class="close-modal" onclick="closeModal('membership_edit_modal')">&times;</button>
-            </div>
-            <form class="modal-form" method="post" id="membership_edit_form">
-                <input type="hidden" name="membership_action" value="update">
-                <input type="hidden" name="pass_key" id="membership_edit_pass_key" value="royal">
-                <input type="hidden" name="mp_id" id="membership_edit_id" value="0">
+                    <div class="service-table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Plan</th>
+                                    <th>Price</th>
+                                    <th>Features (preview)</th>
+                                    <th>Highlight</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($membership_rows[$type])): ?>
+                                    <?php $row_number = 1; ?>
+                                    <?php foreach ($membership_rows[$type] as $row): ?>
+                                        <?php
+                                        $record_id = (int) $row['mp_id'];
+                                        $record_name = $row['display_name'];
+                                        $record_plan = $row['billing_plan'];
+                                        $record_price = (int) $row['price'];
+                                        $record_featured = (int) ($row['is_featured'] ?? 0) === 1;
+                                        $edit_payload = [
+                                            'id' => $record_id,
+                                            'pass_key' => $type,
+                                            'display_name' => $record_name,
+                                            'billing_plan' => $record_plan,
+                                            'price' => $record_price,
+                                            'is_featured' => $record_featured,
+                                            'features' => json_decode($row['features_json'], true),
+                                        ];
+                                        if (!is_array($edit_payload['features'])) {
+                                            $edit_payload['features'] = [];
+                                        }
+                                        ?>
+                                        <tr>
+                                            <td><?php echo $row_number++; ?></td>
+                                            <td><?php echo htmlspecialchars($record_name); ?></td>
+                                            <td><?php echo htmlspecialchars(ucfirst($record_plan)); ?></td>
+                                            <td>₹<?php echo number_format($record_price, 0); ?></td>
+                                            <td class="membership-features-preview"><?php echo htmlspecialchars(membership_features_preview($row['features_json'])); ?></td>
+                                            <td><?php echo $record_featured ? '<span title="Shown as highlighted on the public membership page"><i class="fas fa-star" style="color:#cbb90f;"></i> Yes</span>' : '—'; ?></td>
+                                            <td>
+                                                <div class="services-buttons">
+                                                    <button
+                                                        type="button"
+                                                        class="service-view"
+                                                        onclick="openMembershipViewModal(<?php echo htmlspecialchars(json_encode($edit_payload), ENT_QUOTES, 'UTF-8'); ?>)"
+                                                        title="View details"
+                                                        aria-label="View details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
 
-                <label for="membership_edit_name">Name</label>
-                <input type="text" id="membership_edit_name" name="display_name" required>
+                                                    <button
+                                                        type="button"
+                                                        class="service-update"
+                                                        onclick="openMembershipEditModal(<?php echo htmlspecialchars(json_encode($edit_payload), ENT_QUOTES, 'UTF-8'); ?>)"
+                                                        title="Edit plan"
+                                                        aria-label="Edit plan">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
 
-                <label for="membership_edit_plan">Billing plan</label>
-                <select id="membership_edit_plan" name="billing_plan" required>
-                    <option value="yearly">Yearly</option>
-                    <option value="monthly">Monthly</option>
-                </select>
-
-                <label for="membership_edit_price">Price (₹)</label>
-                <input type="number" id="membership_edit_price" name="price" min="0" step="1" required>
-
-                <label class="membership-checkbox-label">
-                    <input type="checkbox" id="membership_edit_featured" name="is_featured" value="1">
-                    Highlight on website (e.g. most popular plan)
-                </label>
-
-                <div class="membership-features-block">
-                    <div class="membership-features-head">
-                        <label>Features</label>
-                        <button type="button" class="membership-add-feature-btn" onclick="addMembershipFeatureRow('membership_edit_features')" aria-label="Add feature line">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                                                    <form method="post" class="inline-action-form">
+                                                        <input type="hidden" name="membership_action" value="delete">
+                                                        <input type="hidden" name="pass_key" value="<?php echo htmlspecialchars($type); ?>">
+                                                        <input type="hidden" name="mp_id" value="<?php echo $record_id; ?>">
+                                                        <button
+                                                            type="submit"
+                                                            class="service-delete"
+                                                            title="Delete plan"
+                                                            aria-label="Delete plan"
+                                                            onclick="return confirm('Delete this entire plan (all features and price)?');">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="7" class="membership-empty-state">No plans yet. Add a yearly or monthly package, or run <code>admin/setup_membership_plans_table.php</code> to import legacy rows.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
                     </div>
-                    <p class="membership-features-hint">Add or remove lines; empty rows are ignored on save.</p>
-                    <div id="membership_edit_features" class="membership-features-list"></div>
                 </div>
-
-                <button type="submit" class="modal-submit-btn" style="background:var(--brand); color:var(--bg1);">Update plan</button>
-            </form>
+            <?php endforeach; ?>
         </div>
     </div>
+</div>
 
-    <style>
-        .membership-plan-modal.modal-box { max-width: 520px; max-height: 90vh; overflow-y: auto; }
-        .membership-features-block { margin-top: 12px; }
-        .membership-features-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-        .membership-features-head label { margin: 0; }
-        .membership-add-feature-btn {
-            background: var(--brand, #cbb90f);
-            color: var(--bg1, #18150d);
-            border: none;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .membership-add-feature-btn:hover { filter: brightness(1.05); }
-        .membership-features-hint { font-size: 12px; opacity: 0.85; margin: 0 0 8px; }
-        .membership-features-list { display: flex; flex-direction: column; gap: 8px; }
-        .membership-feature-row { display: flex; gap: 8px; align-items: center; }
-        .membership-feature-row input { flex: 1; }
-        .membership-feature-remove {
-            background: transparent;
-            border: 1px solid rgba(0,0,0,0.15);
-            color: #c0392b;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-        .membership-features-preview { max-width: 280px; font-size: 13px; line-height: 1.35; }
-        .membership-checkbox-label { display: flex; align-items: center; gap: 10px; margin-top: 12px; cursor: pointer; font-weight: 500; }
-        .membership-checkbox-label input { width: auto; margin: 0; }
-    </style>
+<div class="modal-overlay" id="membership_add_modal">
+    <div class="modal-box membership-plan-modal">
+        <div class="modal-header">
+            <h3 id="membership_add_modal_title">Add membership plan</h3>
+            <button type="button" class="close-modal" onclick="closeModal('membership_add_modal')">&times;</button>
+        </div>
+        <form class="modal-form" method="post" id="membership_add_form">
+            <input type="hidden" name="membership_action" value="add">
+            <input type="hidden" name="pass_key" id="membership_add_pass_key" value="royal">
 
-    <script>
-        const membershipTitles = {
-            royal: 'Royal Pass',
-            classic: 'Classic Pass',
-            standard: 'Standard Pass'
-        };
+            <label for="membership_add_name">Name</label>
+            <input type="text" id="membership_add_name" name="display_name" placeholder="e.g. Royal Pass" required>
 
-        function openMembershipTab(tabType) {
-            const tabId = `membership-${tabType}`;
-            document.querySelectorAll('.membership-tab-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.target === tabId);
-            });
-            document.querySelectorAll('.membership-tab-content').forEach(content => {
-                content.classList.toggle('active', content.id === tabId);
-            });
-        }
+            <label for="membership_add_plan">Billing plan</label>
+            <select id="membership_add_plan" name="billing_plan" required>
+                <option value="yearly">Yearly</option>
+                <option value="monthly">Monthly</option>
+            </select>
 
-        function openModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.add('active');
-        }
+            <label for="membership_add_price">Price (₹)</label>
+            <input type="number" id="membership_add_price" name="price" min="0" step="1" placeholder="0" required>
 
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.remove('active');
-        }
+            <label class="membership-checkbox-label">
+                <input type="checkbox" id="membership_add_featured" name="is_featured" value="1">
+                Highlight on website (e.g. most popular plan)
+            </label>
 
-        function addMembershipFeatureRow(containerId, value = '') {
-            const wrap = document.getElementById(containerId);
-            if (!wrap) return;
-            const row = document.createElement('div');
-            row.className = 'membership-feature-row';
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.name = 'membership_features[]';
-            input.placeholder = 'Feature description';
-            input.value = value == null ? '' : String(value);
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'membership-feature-remove';
-            btn.title = 'Remove';
-            btn.setAttribute('aria-label', 'Remove feature');
-            btn.innerHTML = '&times;';
-            btn.addEventListener('click', () => row.remove());
-            row.appendChild(input);
-            row.appendChild(btn);
-            wrap.appendChild(row);
-        }
+            <div class="membership-features-block">
+                <div class="membership-features-head">
+                    <label>Features</label>
+                    <button type="button" class="membership-add-feature-btn" onclick="addMembershipFeatureRow('membership_add_features')" aria-label="Add feature line">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <p class="membership-features-hint">Add all benefit lines for this plan; they are saved together as one package.</p>
+                <div id="membership_add_features" class="membership-features-list"></div>
+            </div>
 
-        function clearMembershipFeatureRows(containerId) {
-            const wrap = document.getElementById(containerId);
-            if (wrap) wrap.innerHTML = '';
-        }
+            <button type="submit" class="modal-submit-btn">Save plan</button>
+        </form>
+    </div>
+</div>
 
-        function openMembershipAddModal(passKey) {
-            document.getElementById('membership_add_pass_key').value = passKey;
-            document.getElementById('membership_add_modal_title').textContent = `Add plan — ${membershipTitles[passKey] || passKey}`;
-            document.getElementById('membership_add_name').value = membershipTitles[passKey] || '';
-            document.getElementById('membership_add_plan').value = 'yearly';
-            document.getElementById('membership_add_price').value = '';
-            document.getElementById('membership_add_featured').checked = false;
-            clearMembershipFeatureRows('membership_add_features');
-            addMembershipFeatureRow('membership_add_features', '');
-            openMembershipTab(passKey);
-            openModal('membership_add_modal');
-        }
+<div class="modal-overlay" id="membership_edit_modal">
+    <div class="modal-box membership-plan-modal">
+        <div class="modal-header">
+            <h3 id="membership_edit_modal_title">Edit membership plan</h3>
+            <button type="button" class="close-modal" onclick="closeModal('membership_edit_modal')">&times;</button>
+        </div>
+        <form class="modal-form" method="post" id="membership_edit_form">
+            <input type="hidden" name="membership_action" value="update">
+            <input type="hidden" name="pass_key" id="membership_edit_pass_key" value="royal">
+            <input type="hidden" name="mp_id" id="membership_edit_id" value="0">
 
-        function openMembershipEditModal(data) {
-            const passKey = data.pass_key || (document.querySelector('.membership-tab-btn.active') && document.querySelector('.membership-tab-btn.active').dataset.target.replace('membership-', '')) || 'royal';
-            document.getElementById('membership_edit_pass_key').value = passKey;
-            document.getElementById('membership_edit_id').value = data.id;
-            document.getElementById('membership_edit_modal_title').textContent = `Edit plan — ${membershipTitles[passKey] || passKey}`;
-            document.getElementById('membership_edit_name').value = data.display_name || '';
-            document.getElementById('membership_edit_plan').value = data.billing_plan || 'yearly';
-            document.getElementById('membership_edit_price').value = data.price != null ? data.price : '';
-            document.getElementById('membership_edit_featured').checked = !!data.is_featured;
-            clearMembershipFeatureRows('membership_edit_features');
-            const feats = Array.isArray(data.features) ? data.features : [];
-            if (feats.length === 0) {
-                addMembershipFeatureRow('membership_edit_features', '');
-            } else {
-                feats.forEach(f => addMembershipFeatureRow('membership_edit_features', f));
-            }
-            openMembershipTab(passKey);
-            openModal('membership_edit_modal');
-        }
+            <label for="membership_edit_name">Name</label>
+            <input type="text" id="membership_edit_name" name="display_name" required>
 
-        document.querySelectorAll('.membership-tab-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const tabTarget = this.dataset.target.replace('membership-', '');
-                openMembershipTab(tabTarget);
-            });
+            <label for="membership_edit_plan">Billing plan</label>
+            <select id="membership_edit_plan" name="billing_plan" required>
+                <option value="yearly">Yearly</option>
+                <option value="monthly">Monthly</option>
+            </select>
+
+            <label for="membership_edit_price">Price (₹)</label>
+            <input type="number" id="membership_edit_price" name="price" min="0" step="1" required>
+
+            <label class="membership-checkbox-label">
+                <input type="checkbox" id="membership_edit_featured" name="is_featured" value="1">
+                Highlight on website (e.g. most popular plan)
+            </label>
+
+            <div class="membership-features-block">
+                <div class="membership-features-head">
+                    <label>Features</label>
+                    <button type="button" class="membership-add-feature-btn" onclick="addMembershipFeatureRow('membership_edit_features')" aria-label="Add feature line">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <p class="membership-features-hint">Add or remove lines; empty rows are ignored on save.</p>
+                <div id="membership_edit_features" class="membership-features-list"></div>
+            </div>
+
+            <button type="submit" class="modal-submit-btn" style="background:var(--brand); color:var(--bg1);">Update plan</button>
+        </form>
+    </div>
+</div>
+
+<style>
+    .membership-plan-modal.modal-box {
+        max-width: 520px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .membership-features-block {
+        margin-top: 12px;
+    }
+
+    .membership-features-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .membership-features-head label {
+        margin: 0;
+    }
+
+    .membership-add-feature-btn {
+        background: var(--brand, #cbb90f);
+        color: var(--bg1, #18150d);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .membership-add-feature-btn:hover {
+        filter: brightness(1.05);
+    }
+
+    .membership-features-hint {
+        font-size: 12px;
+        opacity: 0.85;
+        margin: 0 0 8px;
+    }
+
+    .membership-features-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .membership-feature-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .membership-feature-row input {
+        flex: 1;
+    }
+
+    .membership-feature-remove {
+        background: transparent;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        color: #c0392b;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .membership-features-preview {
+        max-width: 280px;
+        font-size: 13px;
+        line-height: 1.35;
+    }
+
+    .membership-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 12px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .membership-checkbox-label input {
+        width: auto;
+        margin: 0;
+    }
+
+    .service-view {
+        background: #e1f5fe;
+        color: #0288d1;
+        border: none;
+        padding: 10px;
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    .service-view:hover {
+        background: #0288d1;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(2, 136, 209, 0.2);
+    }
+
+    .view-feature-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        border-left: 4px solid var(--brand, #cbb90f);
+        color: #18150d;
+        font-weight: 500;
+        font-size: 0.95rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    .view-label {
+        color: #888;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .view-value {
+        font-weight: 600;
+        color: #18150d;
+        font-size: 1.05rem;
+    }
+</style>
+
+<div class="modal-overlay" id="membership_view_modal">
+    <div class="modal-box" style="max-width: 600px; background: #fff;">
+        <div class="modal-header" style="border-bottom: 1px solid #eee; padding-bottom: 15px;">
+            <h3 id="membership_view_modal_title" style="color: #18150d; font-weight: 800;">Plan Details</h3>
+            <button type="button" class="close-modal" onclick="closeModal('membership_view_modal')" style="color: #888;">&times;</button>
+        </div>
+        <div class="modal-view-body" style="padding: 24px;">
+            <div class="view-item" style="margin-bottom: 20px;">
+                <span class="view-label">Plan Name</span>
+                <div id="view_name" class="view-value" style="font-size: 1.3rem; color: var(--brand, #cbb90f);"></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div class="view-item">
+                    <span class="view-label">Billing Cycle</span>
+                    <div id="view_plan" class="view-value"></div>
+                </div>
+                <div class="view-item">
+                    <span class="view-label">Price Point</span>
+                    <div id="view_price" class="view-value" style="background: #fcf8e3; display: inline-block; padding: 4px 12px; border-radius: 6px; color: #856404;"></div>
+                </div>
+            </div>
+
+            <div class="view-item" style="margin-bottom: 24px;">
+                <span class="view-label">Highlight Status</span>
+                <div id="view_featured" class="view-value"></div>
+            </div>
+
+            <div class="view-item">
+                <span class="view-label">Executive Features</span>
+                <ul id="view_features" style="list-style: none; padding: 0; margin-top: 12px;"></ul>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 20px; text-align: right; border-top: 1px solid #eee; background: #fdfdfd; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+            <button type="button" class="modal-submit-btn" style="background: #18150d; color: #fff; border-radius: 8px; padding: 10px 24px;" onclick="closeModal('membership_view_modal')">Back</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const membershipTitles = <?php
+                                $ts = [];
+                                foreach ($membership_config as $k => $c) {
+                                    $ts[$k] = $c['title'];
+                                }
+                                echo json_encode($ts);
+                                ?>;
+
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.add('active');
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove('active');
+    }
+
+    function addMembershipFeatureRow(containerId, value = '') {
+        const wrap = document.getElementById(containerId);
+        if (!wrap) return;
+        const row = document.createElement('div');
+        row.className = 'membership-feature-row';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = 'membership_features[]';
+        input.placeholder = 'Feature description';
+        input.value = value == null ? '' : String(value);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'membership-feature-remove';
+        btn.title = 'Remove';
+        btn.setAttribute('aria-label', 'Remove feature');
+        btn.innerHTML = '&times;';
+        btn.addEventListener('click', () => row.remove());
+        row.appendChild(input);
+        row.appendChild(btn);
+        wrap.appendChild(row);
+    }
+
+    function clearMembershipFeatureRows(containerId) {
+        const wrap = document.getElementById(containerId);
+        if (wrap) wrap.innerHTML = '';
+    }
+
+    function openMembershipTab(tabType) {
+        const tabId = `membership-${tabType}`;
+        document.querySelectorAll('.membership-tab-btn').forEach(btn => {
+            const isActive = (btn.href && btn.href.includes(`tab=${tabType}`)) || (btn.classList.contains('active') && btn.textContent.toLowerCase().includes(tabType));
+            btn.classList.toggle('active', isActive);
         });
-
-        window.addEventListener('click', function(event) {
-            if (event.target.classList.contains('modal-overlay')) {
-                event.target.classList.remove('active');
-            }
+        document.querySelectorAll('.membership-tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === tabId);
         });
+    }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            openMembershipTab(<?php echo json_encode($active_tab); ?>);
-        });
+    function openMembershipViewModal(data) {
+        const passKey = data.pass_key || 'royal';
+        document.getElementById('membership_view_modal_title').textContent = `Summary — ${membershipTitles[passKey] || passKey}`;
+        document.getElementById('view_name').textContent = data.display_name || '';
+        document.getElementById('view_plan').textContent = data.billing_plan ? data.billing_plan.charAt(0).toUpperCase() + data.billing_plan.slice(1) : '';
+        document.getElementById('view_price').textContent = `₹${parseInt(data.price).toLocaleString()}`;
+        document.getElementById('view_featured').innerHTML = data.is_featured ? '<i class="fas fa-star" style="color:#cbb90f;"></i> Featured Plan (Highlighted)' : 'Regular Plan';
 
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
+        const featureList = document.getElementById('view_features');
+        featureList.innerHTML = '';
+        const feats = Array.isArray(data.features) ? data.features : [];
+        if (feats.length === 0) {
+            featureList.innerHTML = '<li style="color: rgba(255,255,255,0.4);">No features listed</li>';
+        } else {
+            feats.forEach(f => {
+                const li = document.createElement('li');
+                li.className = 'view-feature-item';
+                li.innerHTML = `<i class="fas fa-check-circle" style="color: var(--brand); font-size: 0.9rem;"></i> <span>${f}</span>`;
+                featureList.appendChild(li);
+            });
         }
-    </script>
+        openModal('membership_view_modal');
+    }
+
+    function openMembershipAddModal(passKey) {
+        document.getElementById('membership_add_pass_key').value = passKey;
+        document.getElementById('membership_add_modal_title').textContent = `Add plan — ${membershipTitles[passKey] || passKey}`;
+        document.getElementById('membership_add_name').value = membershipTitles[passKey] || '';
+        document.getElementById('membership_add_plan').value = 'yearly';
+        document.getElementById('membership_add_price').value = '';
+        document.getElementById('membership_add_featured').checked = false;
+        clearMembershipFeatureRows('membership_add_features');
+        addMembershipFeatureRow('membership_add_features', '');
+        openModal('membership_add_modal');
+    }
+
+    function openMembershipEditModal(data) {
+        const passKey = data.pass_key || 'royal';
+        document.getElementById('membership_edit_pass_key').value = passKey;
+        document.getElementById('membership_edit_id').value = data.id;
+        document.getElementById('membership_edit_modal_title').textContent = `Edit plan — ${membershipTitles[passKey] || passKey}`;
+        document.getElementById('membership_edit_name').value = data.display_name || '';
+        document.getElementById('membership_edit_plan').value = data.billing_plan || 'yearly';
+        document.getElementById('membership_edit_price').value = data.price != null ? data.price : '';
+        document.getElementById('membership_edit_featured').checked = !!data.is_featured;
+        clearMembershipFeatureRows('membership_edit_features');
+        const feats = Array.isArray(data.features) ? data.features : [];
+        if (feats.length === 0) {
+            addMembershipFeatureRow('membership_edit_features', '');
+        } else {
+            feats.forEach(f => addMembershipFeatureRow('membership_edit_features', f));
+        }
+        openModal('membership_edit_modal');
+    }
+
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove('active');
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        openMembershipTab(<?php echo json_encode($active_tab); ?>);
+    });
+
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+</script>

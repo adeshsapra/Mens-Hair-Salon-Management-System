@@ -1,7 +1,7 @@
 <?php
 include('connect.php');
-$query="SELECT * FROM products";
-$all_product= $con->query($query);
+$query = "SELECT * FROM products";
+$all_product = $con->query($query);
 
 $combo_table_ready = false;
 $combo_products_table_ready = false;
@@ -32,28 +32,30 @@ if ($combo_table_ready && $combo_products_table_ready) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">   
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/style.css">
     <title>ClassyCut Eshop</title>
 
     <!-- font awesome -->
-     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-     <!-- box link -->
-     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <!-- box link -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 </head>
+
 <body>
 
     <!-- header and navigation section -->
 
     <?php
-        include('header.php');
+    include('header.php');
     ?>
 
-     <!-- header and navigation section -->
-    
-    <!-- defualt section -->  
+    <!-- header and navigation section -->
+
+    <!-- defualt section -->
     <div class="defualt-section">
         <img src="photos/about-img1.jpeg" alt="" class="img">
         <div class="img-content">
@@ -61,19 +63,19 @@ if ($combo_table_ready && $combo_products_table_ready) {
             <div class="menu">
                 <a href="index.php">HOME</a> / <span>Our E-shop Products</span>
             </div>
-           
+
         </div>
-        
-     </div>
+
+    </div>
 
 
     <!-- default section -->
 
     <!-- /* product section */ -->
 
-     <div class="product-main-container">
+    <div class="product-main-container">
         <div class="product-container">
-            
+
             <!-- <div class="product-card">
                 <img src="products/hairpowder.jpg" alt="Product 2">
                 <h3>Hair Volumizing Powder</h3>
@@ -206,31 +208,31 @@ if ($combo_table_ready && $combo_products_table_ready) {
 
             <!-- display product -->
             <?php
-                while($row = mysqli_fetch_assoc($all_product)){
-                    $original_price = (float) $row["p_price"];
-                    $discount = isset($row["p_discount"]) ? (float) $row["p_discount"] : 0;
-                    $discounted_price = $original_price - (($original_price * $discount) / 100);
+            while ($row = mysqli_fetch_assoc($all_product)) {
+                $original_price = (float) $row["p_price"];
+                $discount = isset($row["p_discount"]) ? (float) $row["p_discount"] : 0;
+                $discounted_price = $original_price - (($original_price * $discount) / 100);
             ?>
-             <div class="product-card">
-                <img src="upload_product_photos/<?php echo $row["p_img"]; ?>" alt="Product 4">
-                <h3><?php echo $row["p_name"]; ?></h3>
-                <p class="content"><?php echo $row["p_desc"]; ?></p>
-                <p class="eshop-price-wrap">
-                    <?php if ($discount > 0): ?>
-                        <span class="eshop-price-original">₹ <?php echo number_format($original_price, 2); ?></span>
-                        <span class="eshop-price-final">₹ <?php echo number_format($discounted_price, 2); ?></span>
-                        <span class="eshop-discount-badge"><?php echo number_format($discount, 0); ?>% OFF</span>
-                    <?php else: ?>
-                        <span class="eshop-price-final">₹ <?php echo number_format($original_price, 2); ?></span>
-                    <?php endif; ?>
-                    <i> ( <?php echo $row["p_size"]; ?> )</i>
-                </p>
-                <a href="product_display.php?id=<?php echo $row["p_id"]; ?>">
+                <div class="product-card">
+                    <img src="upload_product_photos/<?php echo $row["p_img"]; ?>" alt="Product 4">
+                    <h3><?php echo $row["p_name"]; ?></h3>
+                    <p class="content"><?php echo $row["p_desc"]; ?></p>
+                    <p class="eshop-price-wrap">
+                        <?php if ($discount > 0): ?>
+                            <span class="eshop-price-original">₹ <?php echo number_format($original_price, 2); ?></span>
+                            <span class="eshop-price-final">₹ <?php echo number_format($discounted_price, 2); ?></span>
+                            <span class="eshop-discount-badge"><?php echo number_format($discount, 0); ?>% OFF</span>
+                        <?php else: ?>
+                            <span class="eshop-price-final">₹ <?php echo number_format($original_price, 2); ?></span>
+                        <?php endif; ?>
+                        <i> ( <?php echo $row["p_size"]; ?> )</i>
+                    </p>
+                    <a href="product_display.php?id=<?php echo $row["p_id"]; ?>">
                         <button>View Details</button>
-                </a>
-            </div>
+                    </a>
+                </div>
             <?php
-                }
+            }
             ?>
 
         </div>
@@ -267,10 +269,10 @@ if ($combo_table_ready && $combo_products_table_ready) {
 
     <!-- footer sections -->
 
-   
-    <?php 
-          include('footer.php');
-     ?>
+
+    <?php
+    include('footer.php');
+    ?>
 
 
     <!-- footer sections -->
