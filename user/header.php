@@ -227,4 +227,17 @@ document.addEventListener('click', function(e) {
         }
     }
 }, true);
+
+// Global intercepter for onclick="alert(...)"
+document.addEventListener('click', function(e) {
+    let el = e.target.closest('[onclick*="alert("]');
+    if (el) {
+        let match = el.getAttribute('onclick').match(/alert\(\s*['"](.*?)['"]\s*\)/);
+        if (match) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            showToast(match[1], 'error');
+        }
+    }
+}, true);
 </script>

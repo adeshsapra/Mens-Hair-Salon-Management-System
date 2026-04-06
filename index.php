@@ -27,6 +27,7 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,16 +35,17 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
     <title>ClassyCut Salon</title>
 
     <!-- font awesome -->
-     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-     <!-- box link -->
-     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <!-- box link -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 </head>
+
 <body class="home-page">
 
     <!-- header and navigation section -->
 
     <?php
-        include('header.php');
+    include('header.php');
     ?>
     <!-- ----------------home section-------- -->
     <section class="home">
@@ -66,7 +68,7 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
         </div>
     </section>
 
-        <!-- sevices section -->
+    <!-- sevices section -->
     <div class="home-color">
         <h2>our salon service</h2>
         <h6>- gentalemen's comes to the professionals -</h6>
@@ -101,10 +103,10 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
         </div>
     </div>
 
-        <!-- service section -->
-    
+    <!-- service section -->
 
-        <!-- product section -->
+
+    <!-- product section -->
 
     <div class="product-home-main-container">
         <h1>Our E-shop Products</h1>
@@ -139,7 +141,7 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
         </div>
     </div>
 
-        <!-- product section -->
+    <!-- product section -->
 
     <div class="home-about-heading" id="about">
         <h2>About ClassyCut</h2>
@@ -201,7 +203,7 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
 
     <div class="contact-main-container" id="contact">
         <?php if ($show_contact_sent): ?>
-        <div class="contact-success-banner" role="status">Thank you! Your message was sent successfully.</div>
+            <div class="contact-success-banner" role="status">Thank you! Your message was sent successfully.</div>
         <?php endif; ?>
         <div class="contact-container">
             <div class="contact-form">
@@ -242,9 +244,9 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
         </div>
     </div>
 
-        <!-- opening hours (after contact) -->
+    <!-- opening hours (after contact) -->
 
-        <div class="shedule-container">
+    <div class="shedule-container">
         <div class="shedule-inner">
             <div class="shedule-panel shedule-time">
                 <div class="shedule-intro">
@@ -275,6 +277,6 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
     </div>
 
     <!-- footer sections -->
-     <?php 
-          include('footer.php');
-     ?>
+    <?php
+    include('footer.php');
+    ?>

@@ -26,7 +26,7 @@ $salesResult = mysqli_query($con, $salesQuery);
 $totalSales = mysqli_fetch_assoc($salesResult)['total_sales'];
 
 // Query to get the total number of subscribed memberships in the last 24 hours
-$membershipsQuery = "SELECT COUNT(*) AS total_memberships FROM membership_payments WHERE payment_date >= NOW() - INTERVAL 1 DAY"; // Ensure your membership table has the date column
+$membershipsQuery = "SELECT COUNT(*) AS total_memberships FROM payment WHERE (payment_for = 'membership' OR m_id IS NOT NULL) AND TIMESTAMP(p_date, p_time) >= NOW() - INTERVAL 1 DAY";
 $membershipsResult = mysqli_query($con, $membershipsQuery);
 $totalMemberships = mysqli_fetch_assoc($membershipsResult)['total_memberships'];
 
@@ -44,16 +44,9 @@ if ($recent_payments_page < 1) {
 }
 
 $recent_count_query = "
-    SELECT COUNT(*) AS total FROM (
-        SELECT p.pay_id AS pay_id
-        FROM payment p
-        JOIN product_sales ps ON p.s_id = ps.s_id
-        WHERE ps.s_date >= NOW() - INTERVAL 1 DAY
-        UNION ALL
-        SELECT mp.m_id AS pay_id
-        FROM membership_payments mp
-        WHERE mp.payment_date >= NOW() - INTERVAL 1 DAY
-    ) AS recent_union
+    SELECT COUNT(*) AS total
+    FROM payment p
+    WHERE TIMESTAMP(p.p_date, p.p_time) >= NOW() - INTERVAL 1 DAY
 ";
 $recent_count_result = mysqli_query($con, $recent_count_query);
 $recent_total_records = (int) mysqli_fetch_assoc($recent_count_result)['total'];
@@ -66,15 +59,20 @@ if ($recent_payments_page > $recent_total_pages) {
 $recent_offset = ($recent_payments_page - 1) * $recent_payments_per_page;
 
 $query = "
-    SELECT p.pay_id AS pay_id, p.p_name AS payment_name, p.p_method AS payment_method, ps.s_grand_total AS amount, p.p_status AS status, 'Product Payment' AS payment_type 
+    SELECT
+        p.pay_id AS pay_id,
+        p.p_name AS payment_name,
+        p.p_method AS payment_method,
+        COALESCE(p.p_amount, ps.s_grand_total, 0) AS amount,
+        p.p_status AS status,
+        CASE
+            WHEN (p.payment_for = 'membership' OR p.m_id IS NOT NULL) THEN 'Membership Payment'
+            ELSE 'Product Payment'
+        END AS payment_type
     FROM payment p
-    JOIN product_sales ps ON p.s_id = ps.s_id
-    WHERE ps.s_date >= NOW() - INTERVAL 1 DAY
-    UNION ALL
-    SELECT mp.m_id AS pay_id, mp.card_name AS payment_name, 'Credit Card' AS payment_method, mp.price AS amount, mp.status, 'Membership Payment' AS payment_type 
-    FROM membership_payments mp
-    WHERE mp.payment_date >= NOW() - INTERVAL 1 DAY
-    ORDER BY pay_id DESC
+    LEFT JOIN product_sales ps ON p.s_id = ps.s_id
+    WHERE TIMESTAMP(p.p_date, p.p_time) >= NOW() - INTERVAL 1 DAY
+    ORDER BY p.pay_id DESC
     LIMIT $recent_offset, $recent_payments_per_page
 ";
 $result = mysqli_query($con, $query);

@@ -129,6 +129,7 @@ if ($admin_result) {
             </a>
             <ul class="submenu">
                 <li><a href="products.php"><i class="fas fa-cogs"></i> Product Catalog</a></li>
+                <li><a href="combos.php"><i class="fas fa-layer-group"></i> Combo Management</a></li>
                 <li><a href="manage_orders.php"><i class="fas fa-receipt"></i> Order Management</a></li>
             </ul>
         </li>
@@ -144,6 +145,7 @@ if ($admin_result) {
             </ul>
         </li>
         <li><a href="service_manage.php"><i class="fas fa-cut"></i> Service Catalog</a></li>
+        <li><a href="payment_integrations.php"><i class="fas fa-credit-card"></i> Payment Integrations</a></li>
         <li><a href="payment_manage.php"><i class="fas fa-box"></i> Payment Management</a></li>
         <li><a href="database_backup.php"><i class="fas fa-database"></i> Backup & Restore</a></li>
         <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Sign Out</a></li>
@@ -248,6 +250,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Find all legacy messages
     const phpAlerts = document.querySelectorAll('.message, .success, .confirm, .error');
     phpAlerts.forEach(alert => {
+        // Skip elements that are inside a table or are status chips
+        if (alert.closest('td') || alert.classList.contains('payment-status-chip') || alert.classList.contains('status-badge')) {
+            return;
+        }
         let text = alert.innerText.trim();
         if(text) {
             let type = (alert.classList.contains('message') || alert.classList.contains('error')) ? 'error' : 'success';
@@ -373,3 +379,5 @@ document.addEventListener('click', function(e) {
         }
     });
 </script>
+</body>
+</html>

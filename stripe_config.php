@@ -1,4 +1,31 @@
 <?php
-// Replace these with your actual Stripe Test Keys
-define('STRIPE_PUBLISHABLE_KEY', 'pk_test_51T8imlA7H6HALvmQf8faEZpyrlMcDT9RpqTxC0mKh6KnBInFa15Tp1sVQUGccaYmbXFY6VXCdBIx7clqis9X8hIQ00VY3YBuue');
-define('STRIPE_SECRET_KEY', 'sk_test_51T8imlA7H6HALvmQMkpNxxmbsuTzJMap2yUJJwoYu7sceyy5V4ym2yEwK6z3zhJnXBeEfO08Enjc30EHVhk2KGqD00dHWTDuQ7');
+require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/payment_integration_helpers.php';
+
+$stripeConfig = [
+    'active_mode' => 'sandbox',
+    'is_enabled' => false,
+    'is_connected' => false,
+    'publishable_key' => '',
+    'secret_key' => '',
+];
+
+if (isset($con) && $con instanceof mysqli) {
+    $stripeConfig = paymentIntegrationGetStripeConfig($con);
+}
+
+if (!defined('STRIPE_ACTIVE_MODE')) {
+    define('STRIPE_ACTIVE_MODE', $stripeConfig['active_mode']);
+}
+if (!defined('STRIPE_ENABLED')) {
+    define('STRIPE_ENABLED', (bool) $stripeConfig['is_enabled']);
+}
+if (!defined('STRIPE_IS_CONNECTED')) {
+    define('STRIPE_IS_CONNECTED', (bool) $stripeConfig['is_connected']);
+}
+if (!defined('STRIPE_PUBLISHABLE_KEY')) {
+    define('STRIPE_PUBLISHABLE_KEY', (string) $stripeConfig['publishable_key']);
+}
+if (!defined('STRIPE_SECRET_KEY')) {
+    define('STRIPE_SECRET_KEY', (string) $stripeConfig['secret_key']);
+}

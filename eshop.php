@@ -2,6 +2,32 @@
 include('connect.php');
 $query="SELECT * FROM products";
 $all_product= $con->query($query);
+
+$combo_table_ready = false;
+$combo_products_table_ready = false;
+$all_combos = false;
+
+$combo_table_check = mysqli_query($con, "SHOW TABLES LIKE 'combos'");
+if ($combo_table_check && mysqli_num_rows($combo_table_check) > 0) {
+    $combo_table_ready = true;
+}
+
+$combo_products_table_check = mysqli_query($con, "SHOW TABLES LIKE 'combo_products'");
+if ($combo_products_table_check && mysqli_num_rows($combo_products_table_check) > 0) {
+    $combo_products_table_ready = true;
+}
+
+if ($combo_table_ready && $combo_products_table_ready) {
+    $combo_query = "
+        SELECT c.*, COUNT(cp.id) AS products_count
+        FROM combos c
+        LEFT JOIN combo_products cp ON cp.combo_id = c.id
+        WHERE c.status = 1
+        GROUP BY c.id
+        ORDER BY c.id DESC
+    ";
+    $all_combos = $con->query($combo_query);
+}
 ?>
 
 <!DOCTYPE html>
@@ -208,42 +234,32 @@ $all_product= $con->query($query);
             ?>
 
         </div>
-        <h1><i class="fas fa-lock"></i> Unlock premium Combo's</h1>
+        <h1><i class="fas fa-lock"></i> Unlock Premium Combos</h1>
         <p> "Unlock the ultimate value and elevate your experience with our premium combo, offering unbeatable quality and luxury in one exclusive package."</p>
 
         <div class="product-container">
-
-            <div class="product-card">
-                <img src="products/haircombo.jpg" alt="Product 4">
-                <h3>Crown Of Elegance HairCare Collection</h3>
-                <p class="content">ClassyCut's Hair Oil nourishes and protects your hair with a luxurious, silky smooth finish.</p>
-                <p>₹ 1999 </p>
-                <button>View Details</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/facecombo.jpg" alt="Product 4">
-                <h3>Ultimate Elegance Skincare Collection</h3>
-                <p class="content">ClassyCut's Hair Oil nourishes and protects your hair with a luxurious, silky smooth finish.</p>
-                <p>₹ 2499</p>
-                <button>View Details</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/beardcombo.jpg" alt="Product 4">
-                <h3>Regal Beard Masterpiece Collection</h3>
-                <p class="content">ClassyCut's Hair Oil nourishes and protects your hair with a luxurious, silky smooth finish.</p>
-                <p>₹ 1199 </p>
-                <button>View Details</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/maskcombo.jpg" alt="Product 4">
-                <h3>Luxurious Glow Masque Collection</h3>
-                <p class="content">ClassyCut's Hair Oil nourishes and protects your hair with a luxurious, silky smooth finish.</p>
-                <p>₹ 2999 </p>
-                <button>View Details</button>
-            </div>
+            <?php if (!$combo_table_ready || !$combo_products_table_ready): ?>
+                <div class="combo-empty-note">
+                    Premium combos are not available yet. Run <code>admin/setup_combo_management.php</code> once from admin.
+                </div>
+            <?php elseif ($all_combos && mysqli_num_rows($all_combos) > 0): ?>
+                <?php while ($combo_row = mysqli_fetch_assoc($all_combos)): ?>
+                    <div class="product-card combo-card">
+                        <img src="upload_product_photos/<?php echo htmlspecialchars(!empty($combo_row['image']) ? $combo_row['image'] : 'default.jpeg'); ?>" alt="Combo Image">
+                        <h3><?php echo htmlspecialchars($combo_row['name']); ?></h3>
+                        <p class="content"><?php echo htmlspecialchars($combo_row['description']); ?></p>
+                        <p class="combo-meta-line"><?php echo (int) $combo_row['products_count']; ?> products included</p>
+                        <p>₹ <?php echo number_format((float) $combo_row['price'], 2); ?></p>
+                        <a href="combo_display.php?id=<?php echo (int) $combo_row['id']; ?>">
+                            <button>View Details</button>
+                        </a>
+                    </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <div class="combo-empty-note">
+                    No premium combos available right now. Please check back soon.
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     <!-- /* product section */ -->

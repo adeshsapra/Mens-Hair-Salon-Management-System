@@ -3,6 +3,7 @@
 include 'header.php';
 
 include 'connect.php';
+require_once __DIR__ . '/../payment_integration_helpers.php';
 ?>
 
 <main class="content">
@@ -50,12 +51,32 @@ include 'connect.php';
             <h2 style="font-size: 18px; color: #555; margin-bottom: 12px; font-weight: 600;"><i class="fas fa-gem" style="color: var(--brand); margin-right: 10px;"></i> Membership</h2>
             <?php
             if (isset($user_id)) {
-                $membership_query = "SELECT membership_type, status FROM membership_payments WHERE id = '$user_id' AND LOWER(TRIM(status)) = 'active' ORDER BY payment_date DESC LIMIT 1";
+                $membership_query = "
+                    SELECT mt.membership_name, mt.status, mt.end_date
+                    FROM membership_transactions mt
+                    WHERE mt.user_id = '$user_id'
+                      AND LOWER(TRIM(mt.status)) = 'active'
+                      AND mt.end_date >= CURDATE()
+                    ORDER BY mt.subscribed_at DESC, mt.mt_id DESC
+                    LIMIT 1
+                ";
+                if (!paymentIntegrationMembershipTransactionsReady($con)) {
+                    $membership_query = "
+                        SELECT payment_note AS membership_name, p_status AS status, p_date AS end_date
+                        FROM payment
+                        WHERE id = '$user_id'
+                          AND (payment_for = 'membership' OR m_id IS NOT NULL)
+                          AND LOWER(TRIM(p_status)) = 'active'
+                        ORDER BY pay_id DESC
+                        LIMIT 1
+                    ";
+                }
                 $membership_result = mysqli_query($con, $membership_query);
                 $membership_row = mysqli_fetch_assoc($membership_result);
 
                 if ($membership_row) {
-                    echo '<p style="font-size: 24px; color: var(--bg1); font-weight: 700; margin: 0;">' . htmlspecialchars($membership_row['membership_type']) . '</p>';
+                    $membershipTitle = trim((string) ($membership_row['membership_name'] ?? 'Membership'));
+                    echo '<p style="font-size: 24px; color: var(--bg1); font-weight: 700; margin: 0;">' . htmlspecialchars($membershipTitle) . '</p>';
                     echo '<p style="margin: 8px 0 0; color: #1e8e3e; font-size: 14px; font-weight: 600;"><i class="fas fa-check-circle"></i> Active Plan</p>';
                 } else {
                     echo '<p style="font-size: 24px; color: var(--bg1); font-weight: 700; margin: 0;">Free Tier</p>';
