@@ -14,6 +14,38 @@ function stripeTableExists(mysqli $con, string $table): bool
     return $result && mysqli_num_rows($result) > 0;
 }
 
+function stripeColumnExists(mysqli $con, string $table, string $column): bool
+{
+    $tableSafe = mysqli_real_escape_string($con, $table);
+    $columnSafe = mysqli_real_escape_string($con, $column);
+    $result = mysqli_query($con, "SHOW COLUMNS FROM `{$tableSafe}` LIKE '{$columnSafe}'");
+    return $result && mysqli_num_rows($result) > 0;
+}
+
+function stripePaymentColumnsReady(mysqli $con): bool
+{
+    if (!stripeTableExists($con, 'payment')) {
+        return false;
+    }
+
+    $required = [
+        'm_id',
+        'payment_for',
+        'payment_note',
+        'p_amount',
+        'stripe_payment_intent_id',
+        'stripe_payment_status'
+    ];
+
+    foreach ($required as $column) {
+        if (!stripeColumnExists($con, 'payment', $column)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function getDiscountedPrice($price, $discountPercent)
 {
     if (empty($price)) {
@@ -255,6 +287,12 @@ $delivery = [
     'postal_code' => trim($_POST['postal-code'] ?? '')
 ];
 
+$delivery['full_name'] = substr($delivery['full_name'], 0, 50);
+$delivery['address'] = substr($delivery['address'], 0, 500);
+$delivery['city'] = substr($delivery['city'], 0, 255);
+$delivery['state'] = substr($delivery['state'], 0, 255);
+$delivery['contact_number'] = substr($delivery['contact_number'], 0, 20);
+
 $combo_cart_ready = stripeTableExists($con, 'combo_cart') && stripeTableExists($con, 'combos') && stripeTableExists($con, 'combo_products');
 $redirect_url = buildCheckoutRedirect($product_id, $combo_id);
 
@@ -279,6 +317,13 @@ if (empty($items) || $grand_total <= 0) {
 if (!stripeItemsHaveStock($con, $items)) {
     $_SESSION['toast-type'] = 'error';
     $_SESSION['toast-msg'] = 'Insufficient stock for one or more items.';
+    header('Location: ' . $redirect_url);
+    exit();
+}
+
+if (!stripePaymentColumnsReady($con)) {
+    $_SESSION['toast-type'] = 'error';
+    $_SESSION['toast-msg'] = 'Payment table is not migrated for Stripe. Please run admin setup.';
     header('Location: ' . $redirect_url);
     exit();
 }
@@ -324,9 +369,21 @@ $contactNumber = mysqli_real_escape_string($con, $delivery['contact_number']);
 $address = mysqli_real_escape_string($con, $delivery['address']);
 $city = mysqli_real_escape_string($con, $delivery['city']);
 $state = mysqli_real_escape_string($con, $delivery['state']);
-$postalCode = mysqli_real_escape_string($con, $delivery['postal_code']);
+$postalCodeDigits = preg_replace('/\D+/', '', $delivery['postal_code']);
+$postalCode = (int) ($postalCodeDigits === '' ? '0' : substr($postalCodeDigits, 0, 6));
 $intentSafe = mysqli_real_escape_string($con, (string) $stripeIntent->id);
 $intentStatusSafe = mysqli_real_escape_string($con, (string) $stripeIntent->status);
+
+$duplicateIntent = mysqli_query(
+    $con,
+    "SELECT pay_id FROM payment WHERE stripe_payment_intent_id = '{$intentSafe}' LIMIT 1"
+);
+if ($duplicateIntent && mysqli_num_rows($duplicateIntent) > 0) {
+    $_SESSION['toast-type'] = 'success';
+    $_SESSION['toast-msg'] = 'Payment already processed for this order.';
+    header('Location:thankyou_order.php');
+    exit();
+}
 
 mysqli_begin_transaction($con);
 
@@ -336,9 +393,9 @@ try {
         $buyQty = (int) $item['buy_quantity'];
         $lineTotal = (float) $item['line_total'];
         $unitPrice = (float) $item['p_price'];
-        $img = mysqli_real_escape_string($con, $item['p_img']);
-        $name = mysqli_real_escape_string($con, $item['p_name']);
-        $size = mysqli_real_escape_string($con, $item['p_size']);
+        $img = mysqli_real_escape_string($con, substr((string) ($item['p_img'] ?? 'default.jpeg'), 0, 50));
+        $name = mysqli_real_escape_string($con, substr((string) ($item['p_name'] ?? ''), 0, 50));
+        $size = mysqli_real_escape_string($con, substr((string) ($item['p_size'] ?? ''), 0, 50));
 
         if ($itemType === 'combo') {
             foreach ($item['components'] as $component) {
@@ -363,7 +420,7 @@ try {
              VALUES ({$user_id}, '{$img}', '{$name}', {$unitPrice}, '{$size}', {$buyQty}, {$lineTotal}, {$grand_total}, '{$currentDate}', 'confirmed', '{$currentTime}')"
         );
         if (!$insertSale) {
-            throw new Exception('Order creation failed.');
+            throw new Exception('Order creation failed: ' . mysqli_error($con));
         }
 
         $saleId = (int) mysqli_insert_id($con);
@@ -371,13 +428,16 @@ try {
         $insertPayment = mysqli_query(
             $con,
             "INSERT INTO payment (id, s_id, m_id, payment_for, payment_note, p_name, p_phno, p_address, p_city, p_state, p_pincode, p_method, p_amount, p_date, p_time, p_status, stripe_payment_intent_id, stripe_payment_status)
-             VALUES ({$user_id}, {$saleId}, NULL, 'product', 'Product order #{$saleId}', '{$fullName}', '{$contactNumber}', '{$address}', '{$city}', '{$state}', '{$postalCode}', 'stripe', {$grand_total}, '{$currentDate}', '{$currentTime}', 'paid', '{$intentSafe}', '{$intentStatusSafe}')"
+             VALUES ({$user_id}, {$saleId}, NULL, 'product', 'Product order #{$saleId}', '{$fullName}', '{$contactNumber}', '{$address}', '{$city}', '{$state}', {$postalCode}, 'stripe', {$lineTotal}, '{$currentDate}', '{$currentTime}', 'paid', '{$intentSafe}', '{$intentStatusSafe}')"
         );
         if (!$insertPayment) {
-            throw new Exception('Payment record creation failed.');
+            throw new Exception('Payment record creation failed: ' . mysqli_error($con));
         }
 
-        mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$saleId}, 'confirmed', '{$currentDate}', '{$currentTime}')");
+        $statusInsert = mysqli_query($con, "INSERT INTO order_status_updates (s_id, status, update_date, update_time) VALUES ({$saleId}, 'confirmed', '{$currentDate}', '{$currentTime}')");
+        if (!$statusInsert) {
+            throw new Exception('Order status creation failed: ' . mysqli_error($con));
+        }
     }
 
     if ($product_id) {
@@ -399,7 +459,7 @@ try {
 } catch (Exception $e) {
     mysqli_rollback($con);
     $_SESSION['toast-type'] = 'error';
-    $_SESSION['toast-msg'] = 'Error processing payment. Please contact support.';
+    $_SESSION['toast-msg'] = 'Error processing payment: ' . $e->getMessage();
     header('Location: ' . $redirect_url);
     exit();
 }

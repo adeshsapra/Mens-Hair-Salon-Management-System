@@ -460,7 +460,7 @@ $stripe_is_available = STRIPE_ENABLED && STRIPE_PUBLISHABLE_KEY !== '' && STRIPE
                         </div>
                         <div class="form-field">
                             <label for="contact-number">Contact Number</label>
-                            <input type="text" id="contact-number" name="contact-number" placeholder="Enter your contact number" required>
+                            <input type="tel" id="contact-number" name="contact-number" placeholder="Enter your contact number" inputmode="numeric" pattern="[0-9]{10,15}" maxlength="15" required>
                         </div>
                         <div class="form-field full">
                             <label for="address">Address</label>
@@ -476,7 +476,7 @@ $stripe_is_available = STRIPE_ENABLED && STRIPE_PUBLISHABLE_KEY !== '' && STRIPE
                         </div>
                         <div class="form-field">
                             <label for="postal-code">Pin Code</label>
-                            <input type="text" id="postal-code" name="postal-code" placeholder="Enter postal code" required>
+                            <input type="text" id="postal-code" name="postal-code" placeholder="Enter postal code" inputmode="numeric" pattern="[0-9]{4,10}" maxlength="10" required>
                         </div>
                     </div>
                 </div>
@@ -652,9 +652,19 @@ $stripe_is_available = STRIPE_ENABLED && STRIPE_PUBLISHABLE_KEY !== '' && STRIPE
             const city = document.getElementById('city').value;
             const state = document.getElementById('state').value;
             const postalCode = document.getElementById('postal-code').value;
+            const normalizedContact = (contactNumber || '').replace(/\D+/g, '');
+            const normalizedPostal = (postalCode || '').replace(/\D+/g, '');
 
             if (!fullName || !contactNumber || !address || !city || !state || !postalCode) {
                 showToast('Please fill in all details.', 'error');
+                return;
+            }
+            if (normalizedContact.length < 10) {
+                showToast('Please enter a valid contact number.', 'error');
+                return;
+            }
+            if (normalizedPostal.length < 4) {
+                showToast('Please enter a valid pin code.', 'error');
                 return;
             }
 
@@ -671,7 +681,13 @@ $stripe_is_available = STRIPE_ENABLED && STRIPE_PUBLISHABLE_KEY !== '' && STRIPE
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: payload.toString()
                 });
-                const data = await response.json();
+                const rawResponse = await response.text();
+                let data = {};
+                try {
+                    data = JSON.parse(rawResponse);
+                } catch (jsonError) {
+                    data = { error: 'Invalid response from payment server. Please try again.' };
+                }
 
                 if (data.error) {
                     showToast(data.error, 'error');
@@ -698,11 +714,11 @@ $stripe_is_available = STRIPE_ENABLED && STRIPE_PUBLISHABLE_KEY !== '' && STRIPE
                     const fields = {
                         'payment_intent_id': paymentIntent.id,
                         'full-name': fullName,
-                        'contact-number': contactNumber,
+                        'contact-number': normalizedContact,
                         'address': address,
                         'city': city,
                         'state': state,
-                        'postal-code': postalCode,
+                        'postal-code': normalizedPostal,
                         'product_id': directProductId,
                         'combo_id': directComboId
                     };
