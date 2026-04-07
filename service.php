@@ -38,6 +38,16 @@ while ($row = mysqli_fetch_assoc($haircut_data)) {
 
 $beard="SELECT * FROM beard_service";
 $beard_data= $con->query($beard);
+$beard_services = [];
+
+if ($beard_data instanceof mysqli_result) {
+    while ($row = mysqli_fetch_assoc($beard_data)) {
+        $beard_services[] = [
+            'service' => $row["beard_service"],
+            'price' => $row["beard_price"]
+        ];
+    }
+}
 
 
 
@@ -45,6 +55,16 @@ $beard_data= $con->query($beard);
 
 $skin="SELECT * FROM skin_service";
 $skin_data= $con->query($skin);
+$skin_services = [];
+
+if ($skin_data instanceof mysqli_result) {
+    while ($row = mysqli_fetch_assoc($skin_data)) {
+        $skin_services[] = [
+            'service' => $row["skin_service"],
+            'price' => $row["skin_price"]
+        ];
+    }
+}
 
 
 // spa service
@@ -69,6 +89,14 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
         ];
     }
 }
+
+$service_search_term = isset($_GET['search']) ? trim((string) $_GET['search']) : '';
+
+$normalize_service_name = static function (string $service_name): string {
+    $normalized = function_exists('mb_strtolower') ? mb_strtolower($service_name) : strtolower($service_name);
+    $normalized = preg_replace('/\s+/', ' ', $normalized);
+    return trim((string) $normalized);
+};
 
 
 ?>
@@ -112,6 +140,12 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
 
     <!-- default section -->
 
+    <?php if ($service_search_term !== ''): ?>
+        <div class="search-feedback">
+            Opening matched service for <strong><?php echo htmlspecialchars($service_search_term, ENT_QUOTES); ?></strong>.
+        </div>
+    <?php endif; ?>
+
     <!-- service section -->
 
                 <!-- hair services container -->
@@ -151,9 +185,13 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
                 </li> -->
 
                 <?php foreach ($haircut_design as $design): ?>
-                <li>
-                    <span><?php echo $design['service']; ?></span>
-                    <span>₹ <?php echo $design['price']; ?></span>
+                <?php
+                    $service_name = (string) $design['service'];
+                    $service_key = $normalize_service_name($service_name);
+                ?>
+                <li class="service-item" data-service-name="<?php echo htmlspecialchars($service_key, ENT_QUOTES); ?>">
+                    <span><?php echo htmlspecialchars($service_name, ENT_QUOTES); ?></span>
+                    <span>₹ <?php echo htmlspecialchars((string) $design['price'], ENT_QUOTES); ?></span>
                 </li>
                 <?php endforeach; ?>
             </ul>
@@ -190,9 +228,13 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
                 </li> -->
 
                 <?php foreach ($haircut_style as $style): ?>
-                <li>
-                    <span><?php echo $style['service']; ?></span>
-                    <span>₹ <?php echo $style['price']; ?></span>
+                <?php
+                    $service_name = (string) $style['service'];
+                    $service_key = $normalize_service_name($service_name);
+                ?>
+                <li class="service-item" data-service-name="<?php echo htmlspecialchars($service_key, ENT_QUOTES); ?>">
+                    <span><?php echo htmlspecialchars($service_name, ENT_QUOTES); ?></span>
+                    <span>₹ <?php echo htmlspecialchars((string) $style['price'], ENT_QUOTES); ?></span>
                 </li>
                 <?php endforeach; ?>
 
@@ -248,16 +290,16 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
                     <span>Gotee Beard</span>
                     <span>₹ 350</span>
                 </li> -->
-                <?php 
-                    while($row = mysqli_fetch_assoc($beard_data)){
+                <?php foreach ($beard_services as $beard_service): ?>
+                <?php
+                    $service_name = (string) $beard_service['service'];
+                    $service_key = $normalize_service_name($service_name);
                 ?>
-                <li>
-                    <span><?php echo $row['beard_service'];?></span>
-                    <span>₹ <?php echo $row['beard_price'];?></span>
+                <li class="service-item" data-service-name="<?php echo htmlspecialchars($service_key, ENT_QUOTES); ?>">
+                    <span><?php echo htmlspecialchars($service_name, ENT_QUOTES); ?></span>
+                    <span>₹ <?php echo htmlspecialchars((string) $beard_service['price'], ENT_QUOTES); ?></span>
                 </li>
-                <?php 
-                    }
-                ?>
+                <?php endforeach; ?>
             </ul>
         </div>
     </div>
@@ -314,16 +356,16 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
                     <span>Laser Skin Resurfacing</span>
                     <span>₹ 1000</span>
                 </li> -->
-                <?php 
-                    while($row = mysqli_fetch_assoc($skin_data)){
+                <?php foreach ($skin_services as $skin_service): ?>
+                <?php
+                    $service_name = (string) $skin_service['service'];
+                    $service_key = $normalize_service_name($service_name);
                 ?>
-                <li>
-                    <span><?php echo $row['skin_service'];?></span>
-                    <span>₹ <?php echo $row['skin_price'];?></span>
+                <li class="service-item" data-service-name="<?php echo htmlspecialchars($service_key, ENT_QUOTES); ?>">
+                    <span><?php echo htmlspecialchars($service_name, ENT_QUOTES); ?></span>
+                    <span>₹ <?php echo htmlspecialchars((string) $skin_service['price'], ENT_QUOTES); ?></span>
                 </li>
-                <?php 
-                    }
-                ?>
+                <?php endforeach; ?>
             </ul>
         </div>
     </div>
@@ -365,9 +407,13 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
                 </li> -->
 
                 <?php foreach ($body_treatment as $treatment): ?>
-                <li>
-                    <span><?php echo $treatment['service']; ?></span>
-                    <span>₹ <?php echo $treatment['price']; ?></span>
+                <?php
+                    $service_name = (string) $treatment['service'];
+                    $service_key = $normalize_service_name($service_name);
+                ?>
+                <li class="service-item" data-service-name="<?php echo htmlspecialchars($service_key, ENT_QUOTES); ?>">
+                    <span><?php echo htmlspecialchars($service_name, ENT_QUOTES); ?></span>
+                    <span>₹ <?php echo htmlspecialchars((string) $treatment['price'], ENT_QUOTES); ?></span>
                 </li>
                 <?php endforeach; ?>
             </ul> 
@@ -403,9 +449,13 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
                 </li> -->
 
                 <?php foreach ($body_massage as $massage): ?>
-                <li>
-                    <span><?php echo $massage['service']; ?></span>
-                    <span>₹ <?php echo $massage['price']; ?></span>
+                <?php
+                    $service_name = (string) $massage['service'];
+                    $service_key = $normalize_service_name($service_name);
+                ?>
+                <li class="service-item" data-service-name="<?php echo htmlspecialchars($service_key, ENT_QUOTES); ?>">
+                    <span><?php echo htmlspecialchars($service_name, ENT_QUOTES); ?></span>
+                    <span>₹ <?php echo htmlspecialchars((string) $massage['price'], ENT_QUOTES); ?></span>
                 </li>
                 <?php endforeach; ?>
 
@@ -459,6 +509,47 @@ while ($row = mysqli_fetch_assoc($spa_data)) {
 
     <!-- footer sections -->
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchTerm = <?php echo json_encode($service_search_term, JSON_UNESCAPED_UNICODE); ?>;
+            if (!searchTerm) return;
+
+            const normalize = function(value) {
+                return String(value || '')
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            };
+
+            const targetKey = normalize(searchTerm);
+            if (!targetKey) return;
+
+            const serviceItems = Array.from(document.querySelectorAll('.service-item[data-service-name]'));
+            if (!serviceItems.length) return;
+
+            let matches = serviceItems.filter(function(item) {
+                return normalize(item.dataset.serviceName) === targetKey;
+            });
+
+            if (!matches.length) {
+                matches = serviceItems.filter(function(item) {
+                    return normalize(item.dataset.serviceName).includes(targetKey);
+                });
+            }
+
+            if (!matches.length) return;
+
+            matches.forEach(function(item) {
+                item.classList.add('search-match-focus');
+            });
+
+            const firstMatch = matches[0];
+            firstMatch.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        });
+    </script>
     <script src="js/script.js"></script>
 </body>
 

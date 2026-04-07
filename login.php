@@ -11,6 +11,12 @@ if(isset($_POST['sign-in'])){
         $error[] = 'Please enter both username and password.';
     } else {
         if ($username === 'admin' && $password === '123') {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $_SESSION['admin_id'] = 'admin'; // Static admin ID for the demo/simple setup
+            $_SESSION['toast-msg'] = 'Admin Login Successful! Welcome to the dashboard.';
+            $_SESSION['toast-type'] = 'info';
             header('Location: admin/index.php');
             exit();
         } else {
@@ -18,11 +24,15 @@ if(isset($_POST['sign-in'])){
 
             if (mysqli_num_rows($sel) > 0) {
                 $row = mysqli_fetch_assoc($sel);
-                session_start();
+                if (session_status() === PHP_SESSION_NONE) {
+                    session_start();
+                }
                 $_SESSION['user_id'] = $row['id'];
                 $_SESSION['username'] = $row['username'];
                 $_SESSION['email'] = $row['email'];
                 $_SESSION['profile_image'] = $row['profile_img'];
+                $_SESSION['toast-msg'] = 'Login Successful! Welcome, ' . $row['username'] . '.';
+                $_SESSION['toast-type'] = 'success';
                 header('Location: index.php');
                 exit();
             } else {
@@ -87,6 +97,62 @@ if(isset($_POST['sign-in'])){
             passwordField.setAttribute('type', type);
             this.classList.toggle('fa-lock');
             this.classList.toggle('fa-lock-open');
+        });
+    </script>
+    <!-- Toast System -->
+    <style>
+        #global-toast-container {
+            position: fixed; bottom: 20px; right: 20px; z-index: 100000;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .global-toast {
+            min-width: 250px; background: #333; color: #fff; padding: 15px 20px;
+            border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 500;
+            transform: translateX(120%); transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .global-toast.show { transform: translateX(0); }
+        .toast-success { background: #10b981; border-left: 5px solid #059669; }
+        .toast-error { background: #ef4444; border-left: 5px solid #b91c1c; }
+        .toast-info { background: #3b82f6; border-left: 5px solid #2563eb; }
+    </style>
+    <div id="global-toast-container"></div>
+    <script>
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('global-toast-container');
+            const toast = document.createElement('div');
+            toast.className = `global-toast toast-${type}`;
+            let icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-times-circle' : 'fa-info-circle');
+            toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 3500);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check for PHP Session toasts
+            <?php
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            if (isset($_SESSION['toast-msg'])): ?>
+                showToast("<?php echo addslashes($_SESSION['toast-msg']); ?>", "<?php echo isset($_SESSION['toast-type']) ? $_SESSION['toast-type'] : 'success'; ?>");
+                <?php
+                unset($_SESSION['toast-msg']);
+                unset($_SESSION['toast-type']);
+            endif;
+            ?>
+
+            // Convert PHP static messages to toasts
+            document.querySelectorAll('.error, .success, .message').forEach(alert => {
+                let text = alert.innerText.trim();
+                if(text) {
+                    let type = alert.classList.contains('error') ? 'error' : 'success';
+                    showToast(text, type);
+                }
+                alert.style.display = 'none'; // Hide the static element
+            });
         });
     </script>
 </body>

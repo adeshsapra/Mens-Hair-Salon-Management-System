@@ -40,8 +40,13 @@ if(isset($_POST['sign-up'])){
 
         if ($insert) {
             move_uploaded_file($image_tmp, $image_folder);
-            $error[] = 'Registration Successful..!';
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $_SESSION['toast-msg'] = 'Registration Successful! Please sign in to continue.';
+            $_SESSION['toast-type'] = 'success';
             header('location:login.php');
+            exit();
         } else {
             $error[] = 'Unable to Create Account, Please Try Again..!';
         }

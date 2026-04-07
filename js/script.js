@@ -1,27 +1,273 @@
-const navbar = document.querySelector('.menu');
-const menuBtn = document.querySelector('#menu-btn');
-const searchform = document.querySelector('.search-form');
+if (!window.__classycutHeaderSearchInit) {
+    window.__classycutHeaderSearchInit = true;
 
-if (menuBtn && navbar) {
-    menuBtn.onclick = () => {
-        navbar.classList.toggle('active');
-        if (searchform) searchform.classList.remove('active');
+    const navbar = document.querySelector('.menu');
+    const menuBtn = document.querySelector('#menu-btn');
+    const searchBtn = document.getElementById('search-btn');
+    const globalSearchRoot = document.getElementById('globalSearch');
+    const globalSearchInput = document.getElementById('global-search-input');
+    const globalSearchDropdown = document.getElementById('global-search-dropdown');
+    const globalSearchClear = document.getElementById('global-search-clear');
+    let closeDropdown = () => {};
+
+    const closeSearchPanel = () => {
+        if (!globalSearchRoot) return;
+        globalSearchRoot.classList.remove('is-expanded');
+        closeDropdown();
     };
+
+    if (menuBtn && navbar) {
+        menuBtn.addEventListener('click', () => {
+            navbar.classList.toggle('active');
+            closeSearchPanel();
+        });
+    }
+
+    if (searchBtn && globalSearchRoot && navbar) {
+        searchBtn.addEventListener('click', () => {
+            const shouldOpen = !globalSearchRoot.classList.contains('is-expanded');
+            globalSearchRoot.classList.toggle('is-expanded', shouldOpen);
+            navbar.classList.remove('active');
+            if (shouldOpen && globalSearchInput) {
+                globalSearchInput.focus();
+            } else {
+                closeDropdown();
+            }
+        });
+    }
+
+    if (globalSearchRoot && globalSearchInput && globalSearchDropdown) {
+        let searchDebounceTimer = null;
+        let searchAbortController = null;
+
+        const updateClearButtonState = () => {
+            if (!globalSearchClear) return;
+            const hasValue = globalSearchInput.value.trim().length > 0;
+            globalSearchClear.classList.toggle('is-visible', hasValue);
+        };
+
+        const getUrlWithoutSearchParam = () => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('search');
+            url.searchParams.delete('q');
+            const serializedQuery = url.searchParams.toString();
+            return url.pathname + (serializedQuery ? `?${serializedQuery}` : '') + url.hash;
+        };
+
+        const escapeHtml = (value) => String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const formatPrice = (priceValue) => {
+            const numericPrice = Number(priceValue);
+            if (Number.isNaN(numericPrice)) {
+                return 'Price unavailable';
+            }
+
+            return '\u20B9 ' + numericPrice.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        };
+
+        const openDropdown = () => {
+            globalSearchRoot.classList.add('is-open');
+            globalSearchDropdown.hidden = false;
+        };
+
+        closeDropdown = () => {
+            globalSearchRoot.classList.remove('is-open');
+            globalSearchDropdown.hidden = true;
+            if (searchAbortController) {
+                searchAbortController.abort();
+                searchAbortController = null;
+            }
+        };
+
+        const renderLoadingState = () => {
+            globalSearchDropdown.innerHTML = '<div class="global-search__meta global-search__meta--loading">Searching...</div>';
+            openDropdown();
+        };
+
+        const renderQueryHint = () => {
+            globalSearchDropdown.innerHTML = '<div class="global-search__meta">Type at least 2 characters to search.</div>';
+            openDropdown();
+        };
+
+        const renderResults = (payload, term) => {
+            const services = Array.isArray(payload.services) ? payload.services : [];
+            const products = Array.isArray(payload.products) ? payload.products : [];
+
+            const renderGroup = (title, items, iconClass) => {
+                if (!items.length) {
+                    return '';
+                }
+
+                const rows = items.map((item) => {
+                    const name = escapeHtml(item.name || '');
+                    const price = formatPrice(item.price);
+                    const url = escapeHtml(item.url || '#');
+
+                    return `
+                        <a href="${url}" class="global-search__item">
+                            <span class="global-search__item-icon" aria-hidden="true">
+                                <i class="${iconClass}"></i>
+                            </span>
+                            <span class="global-search__item-name">${name}</span>
+                            <span class="global-search__item-price">${price}</span>
+                        </a>
+                    `;
+                }).join('');
+
+                return `
+                    <section class="global-search__section">
+                        <h4 class="global-search__section-title">${title}</h4>
+                        <div class="global-search__items">${rows}</div>
+                    </section>
+                `;
+            };
+
+            const sectionsMarkup = [
+                renderGroup('Services', services, 'fas fa-scissors'),
+                renderGroup('Products', products, 'fas fa-box-open')
+            ].join('');
+
+            if (!sectionsMarkup) {
+                const safeTerm = escapeHtml(term);
+                globalSearchDropdown.innerHTML = `
+                    <div class="global-search__meta global-search__meta--empty">
+                        No services or products found for "${safeTerm}".
+                    </div>
+                `;
+                openDropdown();
+                return;
+            }
+
+            globalSearchDropdown.innerHTML = sectionsMarkup;
+            openDropdown();
+        };
+
+        if (globalSearchInput.value.trim().length > 0) {
+            globalSearchRoot.classList.add('is-expanded');
+        }
+        updateClearButtonState();
+
+        const fetchSearchResults = (term) => {
+            if (searchAbortController) {
+                searchAbortController.abort();
+            }
+
+            searchAbortController = new AbortController();
+            renderLoadingState();
+
+            fetch(`global_search.php?query=${encodeURIComponent(term)}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                signal: searchAbortController.signal
+            })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error('Search request failed');
+                    }
+                    return response.json();
+                })
+                .then((payload) => {
+                    renderResults(payload, term);
+                })
+                .catch((error) => {
+                    if (error.name === 'AbortError') {
+                        return;
+                    }
+
+                    globalSearchDropdown.innerHTML = `
+                        <div class="global-search__meta global-search__meta--empty">
+                            Unable to load results right now. Please try again.
+                        </div>
+                    `;
+                    openDropdown();
+                });
+        };
+
+        globalSearchInput.addEventListener('input', () => {
+            const term = globalSearchInput.value.trim();
+            updateClearButtonState();
+
+            if (searchDebounceTimer) {
+                clearTimeout(searchDebounceTimer);
+            }
+
+            if (term.length === 0) {
+                closeDropdown();
+                return;
+            }
+
+            if (term.length < 2) {
+                renderQueryHint();
+                return;
+            }
+
+            searchDebounceTimer = setTimeout(() => {
+                fetchSearchResults(term);
+            }, 260);
+        });
+
+        globalSearchInput.addEventListener('focus', () => {
+            const term = globalSearchInput.value.trim();
+            updateClearButtonState();
+            if (term.length === 0) {
+                return;
+            }
+
+            if (term.length < 2) {
+                renderQueryHint();
+                return;
+            }
+
+            fetchSearchResults(term);
+        });
+
+        if (globalSearchClear) {
+            globalSearchClear.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const hasInputValue = globalSearchInput.value.trim().length > 0;
+                const urlParams = new URL(window.location.href).searchParams;
+                const hasSearchParam = urlParams.has('search') || urlParams.has('q');
+
+                globalSearchInput.value = '';
+                updateClearButtonState();
+                closeDropdown();
+
+                if (hasInputValue || hasSearchParam) {
+                    window.location.href = getUrlWithoutSearchParam();
+                }
+            });
+        }
+
+        globalSearchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeSearchPanel();
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            const clickedSearchButton = searchBtn ? searchBtn.contains(event.target) : false;
+            if (!globalSearchRoot.contains(event.target) && !clickedSearchButton) {
+                closeSearchPanel();
+            }
+        });
+    }
+
+    window.addEventListener('scroll', () => {
+        if (navbar) navbar.classList.remove('active');
+        closeSearchPanel();
+    }, { passive: true });
 }
-
-const searchbtn = document.getElementById('search-btn');
-
-if (searchbtn && searchform && navbar) {
-    searchbtn.addEventListener('click', () => {
-        searchform.classList.toggle('active');
-        navbar.classList.remove('active');
-    });
-}
-
-window.onscroll = () => {
-    if (navbar) navbar.classList.remove('active');
-    if (searchform) searchform.classList.remove('active');
-};
 
 
 const year = document.getElementById('yearly-btn');

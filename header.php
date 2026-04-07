@@ -5,6 +5,13 @@ if (!isset($con)) {
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_start();
 }
+
+$global_search_prefill = '';
+if (isset($_GET['q'])) {
+    $global_search_prefill = trim((string) $_GET['q']);
+} elseif (isset($_GET['search'])) {
+    $global_search_prefill = trim((string) $_GET['search']);
+}
 ?>
 <!-- header and navigation section -->
 
@@ -24,13 +31,31 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
         }
         ?>
     </nav>
+    <div class="global-search" id="globalSearch">
+        <div class="global-search__field">
+            <i class="fas fa-search global-search__icon" aria-hidden="true"></i>
+            <input
+                type="search"
+                id="global-search-input"
+                class="global-search__input"
+                placeholder="Search services & products..."
+                autocomplete="off"
+                aria-label="Search services and products"
+                spellcheck="false"
+                value="<?php echo htmlspecialchars($global_search_prefill, ENT_QUOTES); ?>">
+            <button
+                type="button"
+                class="global-search__clear"
+                id="global-search-clear"
+                aria-label="Clear search">
+                <i class="fas fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="global-search__dropdown" id="global-search-dropdown" hidden></div>
+    </div>
     <div class="icons">
         <div class="fas fa-search" id="search-btn"></div>
         <div class="fas fa-bars" id="menu-btn"></div>
-    </div>
-    <div class="search-form">
-        <input type="search" name="search" id="search-box" placeholder="Search Here....">
-        <label for="search-box" class="fas fa-search"></label>
     </div>
     <?php
     if (isset($_SESSION['user_id'])) {

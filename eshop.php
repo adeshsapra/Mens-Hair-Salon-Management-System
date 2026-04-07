@@ -3,6 +3,8 @@ include('connect.php');
 $query = "SELECT * FROM products";
 $all_product = $con->query($query);
 $product_total_count = ($all_product && $all_product instanceof mysqli_result) ? mysqli_num_rows($all_product) : 0;
+$product_search_term = isset($_GET['search']) ? trim((string) $_GET['search']) : '';
+$product_search_query = function_exists('mb_strtolower') ? mb_strtolower($product_search_term) : strtolower($product_search_term);
 
 $combo_table_ready = false;
 $combo_products_table_ready = false;
@@ -480,6 +482,11 @@ if ($combo_table_ready && $combo_products_table_ready) {
     <!-- /* product section */ -->
 
     <div class="eshop-main-wrapper">
+        <?php if ($product_search_term !== ''): ?>
+            <div class="search-feedback search-feedback--light">
+                Showing product results for <strong><?php echo htmlspecialchars($product_search_term, ENT_QUOTES); ?></strong>.
+            </div>
+        <?php endif; ?>
         <div class="product-main-container">
             <!-- Professional Sidebar Filter -->
             <aside class="eshop-sidebar" id="eshopFilterRoot">
@@ -490,7 +497,12 @@ if ($combo_table_ready && $combo_products_table_ready) {
                         <div class="eshop-field">
                             <div class="eshop-input-wrap">
                                 <i class="fas fa-search"></i>
-                                <input type="text" id="eshopSearchInput" placeholder="E.g. Hair Wax...">
+                                <input
+                                    type="text"
+                                    id="eshopSearchInput"
+                                    placeholder="E.g. Hair Wax..."
+                                    value="<?php echo htmlspecialchars($product_search_term, ENT_QUOTES); ?>"
+                                    data-initial-query="<?php echo htmlspecialchars($product_search_term, ENT_QUOTES); ?>">
                             </div>
                         </div>
                     </div>
@@ -559,13 +571,15 @@ if ($combo_table_ready && $combo_products_table_ready) {
                         $filter_desc = strtolower(trim((string) $row["p_desc"]));
                         $filter_size = trim((string) $row["p_size"]);
                         $filter_blob = trim($filter_name . " " . $filter_desc . " " . strtolower($filter_size));
+                        $is_search_match = ($product_search_query !== '' && strpos($filter_blob, $product_search_query) !== false);
                     ?>
-                        <div class="product-card"
+                        <div class="product-card<?php echo $is_search_match ? ' search-match-highlight' : ''; ?>"
                             data-product-card="true"
                             data-name="<?php echo htmlspecialchars($filter_name, ENT_QUOTES); ?>"
                             data-search="<?php echo htmlspecialchars($filter_blob, ENT_QUOTES); ?>"
                             data-size="<?php echo htmlspecialchars($filter_size, ENT_QUOTES); ?>"
-                            data-price="<?php echo number_format($filter_price, 2, '.', ''); ?>">
+                            data-price="<?php echo number_format($filter_price, 2, '.', ''); ?>"
+                            data-query-match="<?php echo $is_search_match ? '1' : '0'; ?>">
                             <img src="upload_product_photos/<?php echo $row["p_img"]; ?>" alt="Product">
                             <h3><?php echo $row["p_name"]; ?></h3>
                             <p class="content"><?php echo $row["p_desc"]; ?></p>
@@ -649,9 +663,6 @@ if ($combo_table_ready && $combo_products_table_ready) {
             const filterRoot = document.getElementById('eshopFilterRoot');
             if (!grid || !filterRoot) return;
 
-            const cards = Array.from(grid.querySelectorAll('[data-product-card="true"]'));
-            if (!cards.length) return;
-
             const searchInput = document.getElementById('eshopSearchInput');
             const sortSelect = document.getElementById('eshopSortSelect');
             const maxPriceInput = document.getElementById('eshopPriceMax');
@@ -661,6 +672,26 @@ if ($combo_table_ready && $combo_products_table_ready) {
             const rangeLabel = document.getElementById('eshopRangeLabel');
             const resetButton = document.getElementById('eshopResetBtn');
             const emptyState = document.getElementById('eshopEmptyState');
+            const initialQuery = searchInput ? (searchInput.dataset.initialQuery || '').trim() : '';
+
+            if (searchInput && initialQuery && !searchInput.value.trim()) {
+                searchInput.value = initialQuery;
+            }
+
+            const cards = Array.from(grid.querySelectorAll('[data-product-card="true"]'));
+            if (!cards.length) {
+                if (resultCount) {
+                    resultCount.textContent = '0 products';
+                }
+                if (emptyState) {
+                    const activeQuery = searchInput ? searchInput.value.trim() : '';
+                    emptyState.textContent = activeQuery
+                        ? 'No products found for "' + activeQuery + '". Try a different keyword.'
+                        : 'No products are available right now.';
+                    emptyState.hidden = false;
+                }
+                return;
+            }
 
             cards.forEach(function(card, index) {
                 card.dataset.order = String(index);
@@ -846,11 +877,19 @@ if ($combo_table_ready && $combo_products_table_ready) {
                     const matchesPrice = price <= currentMaxPrice;
                     const shouldShow = matchesSearch && matchesSize && matchesPrice;
 
+                    card.classList.toggle('search-match-highlight', Boolean(searchTerm) && matchesSearch);
+
                     if (shouldShow) visibleCards.push(card);
                     else card.style.display = 'none';
                 });
 
                 resultCount.textContent = visibleCards.length + (visibleCards.length === 1 ? ' product found' : ' products found');
+                if (visibleCards.length === 0) {
+                    const activeQuery = (searchInput.value || '').trim();
+                    emptyState.textContent = activeQuery
+                        ? 'No products found for "' + activeQuery + '". Try another keyword or reset filters.'
+                        : 'No products match your filters. Try resetting or selecting different criteria.';
+                }
                 emptyState.hidden = visibleCards.length !== 0;
 
                 applyPagination(visibleCards);
