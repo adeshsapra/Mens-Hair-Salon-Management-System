@@ -45,227 +45,393 @@ if ($combo_table_ready && $combo_products_table_ready) {
     <!-- box link -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <style>
-        .eshop-filter-zone {
-            padding: 2rem clamp(0.75rem, 3vw, 1.5rem) 0.5rem;
+        /* Full-width white section wrapper */
+        .eshop-main-wrapper {
+            background-color: #fff;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            position: relative;
+            z-index: 2;
+        }
+
+        .product-main-container {
+            display: flex;
+            max-width: 1600px;
+            /* Wider for more content space */
+            margin: 0 auto;
+            gap: 4rem;
+            /* More breathing room between sidebar and products */
+            padding: 4rem 40px;
+            /* Reduced side padding (was clamp(1rem, 5vw, 5rem)) */
+            align-items: flex-start;
+            background: #fff;
+        }
+
+        .eshop-sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 100px;
+            /* Anchors fixed relative to top header */
+            height: fit-content;
+            z-index: 10;
+        }
+
+        .eshop-content {
+            flex: 1;
+            min-width: 0;
+            max-height: 800px; /* Initial fallback, synced by JS to match Sidebar */
+            /* Independent scroll for products */
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 2rem;
+            /* Space for the scrollbar and breathing room */
+            overscroll-behavior-y: auto;
+            /* Native scroll chaining: once bottom is reached, page scrolls */
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar for Product Listing Area */
+        .eshop-content::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .eshop-content::-webkit-scrollbar-track {
+            background: rgba(240, 238, 234, 0.5);
+            border-radius: 10px;
+        }
+
+        .eshop-content::-webkit-scrollbar-thumb {
+            background: var(--brand);
+            border-radius: 10px;
         }
 
         .eshop-filter-panel {
-            position: relative;
-            overflow: hidden;
-            border-radius: 16px;
-            border: 1px solid rgba(203, 185, 15, 0.35);
-            background:
-                radial-gradient(circle at 85% -10%, rgba(203, 185, 15, 0.22) 0%, rgba(203, 185, 15, 0) 40%),
-                linear-gradient(120deg, rgba(24, 21, 13, 0.98) 0%, rgba(32, 28, 17, 0.97) 100%);
-            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
-            padding: 1.35rem;
+            background: #ffffff;
+            border: 1px solid rgba(203, 185, 15, 0.22);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.05);
         }
 
-        .eshop-filter-top {
+        .eshop-filter-section {
+            margin-bottom: 2.25rem;
+            padding-bottom: 2rem;
+            border-bottom: 1.5px dashed #f0eeea;
+        }
+
+        .eshop-filter-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .eshop-filter-section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--bg1);
+            margin-bottom: 1.25rem;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .product-main-container .eshop-filter-title {
-            margin: 0;
-            color: var(--bg2);
-            font-size: clamp(1.05rem, 2vw, 1.3rem);
-            letter-spacing: 0.02em;
+            gap: 0.75rem;
             text-transform: none;
         }
 
-        .product-main-container .eshop-filter-subtitle {
-            margin: 0.2rem 0 0;
-            color: rgba(234, 227, 194, 0.82);
-            font-size: 0.92rem;
-            text-align: left;
-            line-height: 1.45;
-            text-transform: none;
-            font-weight: 400;
-        }
-
-        .eshop-result-pill {
-            border-radius: 999px;
-            border: 1px solid rgba(203, 185, 15, 0.48);
-            background: rgba(203, 185, 15, 0.14);
-            color: #f5f1dc;
-            padding: 0.44rem 0.85rem;
-            font-size: 0.82rem;
-            font-weight: 600;
-            text-transform: none;
-            white-space: nowrap;
-        }
-
-        .eshop-filter-grid {
-            display: grid;
-            grid-template-columns: 1.4fr 0.75fr 0.85fr;
-            gap: 0.8rem;
+        .eshop-filter-section-title i {
+            color: var(--brand);
+            font-size: 0.9rem;
         }
 
         .eshop-field {
             display: flex;
             flex-direction: column;
-            gap: 0.35rem;
-        }
-
-        .eshop-field label {
-            color: rgba(234, 227, 194, 0.88);
-            font-size: 0.74rem;
-            letter-spacing: 0.08em;
-            font-weight: 600;
-            text-transform: uppercase;
+            gap: 0.6rem;
         }
 
         .eshop-input-wrap {
+            position: relative;
             display: flex;
             align-items: center;
-            position: relative;
         }
 
         .eshop-input-wrap i {
             position: absolute;
-            left: 0.8rem;
-            color: rgba(24, 21, 13, 0.65);
-            font-size: 0.86rem;
+            left: 1.1rem;
+            color: #8c8562;
+            font-size: 0.95rem;
             pointer-events: none;
         }
 
         .eshop-input-wrap input,
         .eshop-input-wrap select {
             width: 100%;
-            height: 44px;
-            border-radius: 10px;
-            border: 1px solid rgba(24, 21, 13, 0.1);
-            background: #fffdf3;
+            height: 52px;
+            border-radius: 14px;
+            border: 1.5px solid #eceae0;
+            background: #fdfdfa;
             color: var(--bg1);
-            font-size: 0.94rem;
-            padding: 0 0.75rem 0 2.25rem;
+            font-size: 0.96rem;
+            padding: 0 1rem 0 2.8rem;
             text-transform: none;
             font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .eshop-input-wrap select {
             cursor: pointer;
+            appearance: none;
+            padding-right: 2.5rem;
+        }
+
+        .eshop-input-wrap:has(select)::after {
+            content: '\f107';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 1.2rem;
+            color: #8c8562;
+            pointer-events: none;
         }
 
         .eshop-input-wrap input:focus,
         .eshop-input-wrap select:focus {
             outline: none;
             border-color: var(--brand);
-            box-shadow: 0 0 0 3px rgba(203, 185, 15, 0.2);
             background: #fff;
-        }
-
-        .eshop-filter-footer {
-            margin-top: 0.9rem;
-            display: grid;
-            grid-template-columns: 1.25fr 1fr auto;
-            gap: 0.9rem;
-            align-items: end;
+            box-shadow: 0 0 0 5px rgba(203, 185, 15, 0.12);
         }
 
         .eshop-size-rail {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.45rem;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
         }
 
         .eshop-size-chip {
-            border: 1px solid rgba(234, 227, 194, 0.35);
-            background: rgba(255, 255, 255, 0.05);
-            color: #ece5c8;
-            padding: 0.38rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            font-weight: 500;
+            border: 1.5px solid #eceae0;
+            background: #fdfdfa;
+            color: #5a5438;
+            padding: 0.75rem;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            text-align: center;
             cursor: pointer;
-            text-transform: none;
+            transition: all 0.25s ease;
+        }
+
+        .eshop-size-chip:hover:not(.is-active) {
+            border-color: var(--brand);
+            background: #fffdf3;
+            transform: scale(1.02);
         }
 
         .eshop-size-chip.is-active {
             background: var(--brand);
             color: var(--bg1);
             border-color: var(--brand);
-            font-weight: 700;
-        }
-
-        .eshop-range-wrap {
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-        }
-
-        .eshop-range-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.75rem;
+            box-shadow: 0 6px 15px rgba(203, 185, 15, 0.28);
         }
 
         .eshop-range-label {
-            color: rgba(234, 227, 194, 0.95);
-            font-size: 0.84rem;
-            font-weight: 600;
-            text-transform: none;
-        }
-
-        .eshop-range-input {
-            width: 110px;
-            height: 38px;
-            border-radius: 8px;
-            border: 1px solid rgba(24, 21, 13, 0.1);
-            background: #fffdf3;
+            font-size: 1.05rem;
+            font-weight: 800;
             color: var(--bg1);
-            font-size: 0.9rem;
-            text-align: center;
-            text-transform: none;
-            font-weight: 600;
-        }
-
-        .eshop-range-input:focus {
-            outline: none;
-            border-color: var(--brand);
-            box-shadow: 0 0 0 3px rgba(203, 185, 15, 0.2);
+            margin-bottom: 1rem;
+            display: block;
         }
 
         .eshop-range-slider {
             width: 100%;
             accent-color: var(--brand);
-            cursor: pointer;
+            height: 8px;
+            border-radius: 4px;
+            background: #f2f2f2;
+            margin-bottom: 1rem;
         }
 
         .eshop-reset-btn {
-            height: 38px;
-            border: 1px solid rgba(203, 185, 15, 0.62);
-            background: transparent;
-            color: #f3ebcf;
-            border-radius: 9px;
-            padding: 0 1rem;
-            font-size: 0.85rem;
+            width: 100%;
+            height: 52px;
+            border: 2px solid #f2f2f2;
+            background: #fff;
+            color: #888;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
             cursor: pointer;
-            font-weight: 600;
-            text-transform: none;
+            transition: all 0.2s ease;
+            margin-top: 1.5rem;
         }
 
         .eshop-reset-btn:hover {
-            background: rgba(203, 185, 15, 0.14);
-            color: #fff;
+            border-color: #ff5252;
+            color: #ff5252;
+            background: rgba(255, 82, 82, 0.05);
+            transform: translateY(-2px);
         }
 
-        .eshop-empty-state {
-            margin: 0 0 1.6rem;
-            text-align: center;
-            background: #fff7d6;
-            border: 1px dashed rgba(203, 185, 15, 0.8);
-            color: #5a4f08;
-            border-radius: 10px;
-            padding: 0.95rem 1rem;
-            font-size: 0.95rem;
-            font-weight: 600;
+        /* Listing Header & Results */
+        .eshop-listing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid #f8f8f8;
+        }
+
+        .eshop-listing-title {
+            font-size: 2.1rem;
+            color: var(--bg1);
+            font-weight: 900;
+            letter-spacing: -0.03em;
             text-transform: none;
+            position: relative;
+        }
+
+        .eshop-listing-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -1.6rem;
+            width: 100px;
+            height: 4px;
+            background: var(--brand);
+            border-radius: 2px;
+        }
+
+        .eshop-result-pill {
+            background: #fdfdfa;
+            border: 1.5px solid #eceae0;
+            color: #8c8562;
+            padding: 0.65rem 1.4rem;
+            border-radius: 999px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+        }
+
+        /* Pagination Styling matching Admin */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 5rem;
+            margin-bottom: 1rem;
+            gap: 10px;
+        }
+
+        .pagination-item {
+            padding: 10px 20px;
+            border: 1.5px solid #f2f2f2;
+            border-radius: 10px;
+            color: var(--bg1);
+            font-weight: 700;
+            transition: all 0.2s;
+            background: #fff;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .pagination-item:hover {
+            background: var(--brand);
+            color: var(--bg1);
+            border-color: var(--brand);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(203, 185, 15, 0.3);
+        }
+
+        .pagination-item.active {
+            background: var(--bg1);
+            color: var(--white);
+            border-color: var(--bg1);
+            box-shadow: 0 6px 18px rgba(24, 21, 13, 0.25);
+        }
+
+        .pagination-item.disabled {
+            color: #ddd;
+            pointer-events: none;
+            border-color: #f8f8f8;
+            opacity: 0.7;
+        }
+
+        /* Combo Section refinement (Outside Main Content) */
+        .eshop-combos-section {
+            background: #fdfdfa;
+            padding: 6rem clamp(1.5rem, 5vw, 5rem) 8rem;
+            border-top: 1px solid #f2f2f2;
+            width: 100%;
+        }
+
+        .eshop-combos-section .eshop-section-head {
+            text-align: center;
+            margin-bottom: 4.5rem;
+        }
+
+        .eshop-combos-section h2 {
+            font-size: 2.8rem;
+            color: var(--bg1);
+            font-weight: 900;
+            margin-bottom: 1.25rem;
+            letter-spacing: -0.04em;
+        }
+
+        .eshop-combos-section p {
+            color: #6d6644;
+            max-width: 650px;
+            margin: 0 auto;
+            font-size: 1.15rem;
+            line-height: 1.7;
+        }
+
+        .combo-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 2rem !important;
+            padding: 0 !important;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .product-main-container .product-container {
+            padding: 0 !important;
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            /* Forces 3 products per row for a balanced density */
+            gap: 2.5rem 2rem !important;
+        }
+
+        @media (max-width: 1200px) {
+            .combo-grid-4 {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .product-main-container {
+                flex-direction: column;
+                padding: 3rem 1.5rem;
+                gap: 4rem;
+            }
+
+            .eshop-sidebar {
+                width: 100%;
+                position: static;
+            }
+
+            .eshop-size-rail {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+
+        @media (max-width: 600px) {
+            .combo-grid-4 {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         @media (max-width: 992px) {
@@ -313,261 +479,156 @@ if ($combo_table_ready && $combo_products_table_ready) {
 
     <!-- /* product section */ -->
 
-    <div class="product-main-container">
-        <div class="eshop-filter-zone" id="eshopFilterRoot">
-            <div class="eshop-filter-panel">
-                <div class="eshop-filter-top">
-                    <div>
-                        <h2 class="eshop-filter-title">Shop Smarter With Quick Filters</h2>
-                        <p class="eshop-filter-subtitle">Search by product name, size, or budget to find what you need faster.</p>
-                    </div>
-                    <span class="eshop-result-pill" id="eshopResultCount"><?php echo (int) $product_total_count; ?> products found</span>
-                </div>
-
-                <div class="eshop-filter-grid">
-                    <div class="eshop-field">
-                        <label for="eshopSearchInput">Search Product</label>
-                        <div class="eshop-input-wrap">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="eshopSearchInput" placeholder="Try: wax, beard oil, face mask...">
+    <div class="eshop-main-wrapper">
+        <div class="product-main-container">
+            <!-- Professional Sidebar Filter -->
+            <aside class="eshop-sidebar" id="eshopFilterRoot">
+                <div class="eshop-filter-panel">
+                    <!-- Search Section -->
+                    <div class="eshop-filter-section">
+                        <h3 class="eshop-filter-section-title"><i class="fas fa-search"></i> Search Products</h3>
+                        <div class="eshop-field">
+                            <div class="eshop-input-wrap">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="eshopSearchInput" placeholder="E.g. Hair Wax...">
+                            </div>
                         </div>
                     </div>
-                    <div class="eshop-field">
-                        <label for="eshopSortSelect">Sort By</label>
-                        <div class="eshop-input-wrap">
-                            <i class="fas fa-arrow-down-wide-short"></i>
-                            <select id="eshopSortSelect">
-                                <option value="relevance">Default Order</option>
-                                <option value="price_asc">Price: Low to High</option>
-                                <option value="price_desc">Price: High to Low</option>
-                                <option value="name_asc">Name: A to Z</option>
-                            </select>
+
+                    <!-- Sort Section -->
+                    <div class="eshop-filter-section">
+                        <h3 class="eshop-filter-section-title"><i class="fas fa-sort-amount-down"></i> Sort Products</h3>
+                        <div class="eshop-field">
+                            <div class="eshop-input-wrap">
+                                <i class="fas fa-filter"></i>
+                                <select id="eshopSortSelect">
+                                    <option value="relevance">Default Sorting</option>
+                                    <option value="price_asc">Price: Low to High</option>
+                                    <option value="price_desc">Price: High to Low</option>
+                                    <option value="name_asc">Name: A to Z</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    <div class="eshop-field">
-                        <label for="eshopPriceMax">Max Price (₹)</label>
-                        <div class="eshop-input-wrap">
-                            <i class="fas fa-indian-rupee-sign"></i>
-                            <input type="number" id="eshopPriceMax" min="0" step="1">
+
+                    <!-- Price Section -->
+                    <div class="eshop-filter-section">
+                        <h3 class="eshop-filter-section-title"><i class="fas fa-tag"></i> Price Range</h3>
+                        <div class="eshop-range-wrap">
+                            <input type="range" min="0" step="1" id="eshopPriceRange" class="eshop-range-slider">
+                            <span class="eshop-range-label" id="eshopRangeLabel">Up to ₹ 0</span>
+                            <div class="eshop-input-wrap">
+                                <i class="fas fa-indian-rupee-sign"></i>
+                                <input type="number" id="eshopPriceMax" placeholder="Max Price">
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="eshop-filter-footer">
-                    <div class="eshop-size-rail" id="eshopSizeFilters"></div>
-                    <div class="eshop-range-wrap">
-                        <div class="eshop-range-top">
-                            <span class="eshop-range-label" id="eshopRangeLabel"></span>
-                            <button type="button" class="eshop-reset-btn" id="eshopResetBtn">Reset Filters</button>
+                    <!-- Size Section -->
+                    <div class="eshop-filter-section">
+                        <h3 class="eshop-filter-section-title"><i class="fas fa-ruler-combined"></i> Filter By Size</h3>
+                        <div class="eshop-size-rail" id="eshopSizeFilters">
+                            <!-- Chips injected by JS -->
                         </div>
-                        <input type="range" min="0" step="1" id="eshopPriceRange" class="eshop-range-slider">
                     </div>
+
+                    <button type="button" class="eshop-reset-btn" id="eshopResetBtn">
+                        <i class="fas fa-rotate-left"></i> Reset All Filters
+                    </button>
                 </div>
-            </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="eshop-content">
+                <!-- Listing Header -->
+                <div class="eshop-listing-header">
+                    <h2 class="eshop-listing-title">Our Exclusive Collection</h2>
+                    <span class="eshop-result-pill" id="eshopResultCount"><?php echo (int) $product_total_count; ?> products</span>
+                </div>
+
+                <div class="product-container" id="eshopProductGrid">
+                    <!-- display product -->
+                    <?php
+                    $all_product->data_seek(0); // Reset pointer
+                    while ($row = mysqli_fetch_assoc($all_product)) {
+                        $original_price = (float) $row["p_price"];
+                        $discount = isset($row["p_discount"]) ? (float) $row["p_discount"] : 0;
+                        $discounted_price = $original_price - (($original_price * $discount) / 100);
+                        $filter_price = $discount > 0 ? $discounted_price : $original_price;
+                        $filter_name = strtolower(trim((string) $row["p_name"]));
+                        $filter_desc = strtolower(trim((string) $row["p_desc"]));
+                        $filter_size = trim((string) $row["p_size"]);
+                        $filter_blob = trim($filter_name . " " . $filter_desc . " " . strtolower($filter_size));
+                    ?>
+                        <div class="product-card"
+                            data-product-card="true"
+                            data-name="<?php echo htmlspecialchars($filter_name, ENT_QUOTES); ?>"
+                            data-search="<?php echo htmlspecialchars($filter_blob, ENT_QUOTES); ?>"
+                            data-size="<?php echo htmlspecialchars($filter_size, ENT_QUOTES); ?>"
+                            data-price="<?php echo number_format($filter_price, 2, '.', ''); ?>">
+                            <img src="upload_product_photos/<?php echo $row["p_img"]; ?>" alt="Product">
+                            <h3><?php echo $row["p_name"]; ?></h3>
+                            <p class="content"><?php echo $row["p_desc"]; ?></p>
+                            <p class="eshop-price-wrap">
+                                <?php if ($discount > 0): ?>
+                                    <span class="eshop-price-original">₹ <?php echo number_format($original_price, 2); ?></span>
+                                    <span class="eshop-price-final">₹ <?php echo number_format($discounted_price, 2); ?></span>
+                                    <span class="eshop-discount-badge"><?php echo number_format($discount, 0); ?>% OFF</span>
+                                <?php else: ?>
+                                    <span class="eshop-price-final">₹ <?php echo number_format($original_price, 2); ?></span>
+                                <?php endif; ?>
+                                <i> ( <?php echo $row["p_size"]; ?> )</i>
+                            </p>
+                            <a href="product_display.php?id=<?php echo $row["p_id"]; ?>">
+                                <button>View Details</button>
+                            </a>
+                        </div>
+                    <?php
+                    }
+                    ?>
+                </div>
+
+                <div class="eshop-empty-state" id="eshopEmptyState" hidden>
+                    No products match your filters. Try resetting or selecting different criteria.
+                </div>
+
+                <!-- JS Managed Pagination Container -->
+                <div id="eshopPagination" class="pagination-container"></div>
+            </main>
         </div>
 
-        <div class="product-container" id="eshopProductGrid">
-
-            <!-- <div class="product-card">
-                <img src="products/hairpowder.jpg" alt="Product 2">
-                <h3>Hair Volumizing Powder</h3>
-                <p class="content">ClassyCut's volumizing powder wax adds instant lift and texture with a lightweight, natural feel.</p>
-                <p>₹ 349 <i> ( 100ml )</i></p>
-                <button>Add To Cart</button>
+        <!-- Premium Combos Section (Now Outside the Flex Container) -->
+        <section class="eshop-combos-section">
+            <div class="eshop-section-head">
+                <h2><i class="fas fa-gem"></i> Unlock Premium Combos</h2>
+                <p>Elevate your grooming routine with our handcrafted bundles, offering the ultimate luxury and value in one package.</p>
             </div>
 
-            <div class="product-card">
-                <img src="products/hairoil.jpg" alt="Product 2">
-                <h3>Hair Oil</h3>
-                <p class="content">ClassyCut's Hair Oil nourishes and protects your hair with a luxurious, silky smooth finish.</p>
-                <p>₹ 299 <i> ( 100ml )</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/hairsprey.jpg" alt="Product 3">
-                <h3>Hair Spray</h3>
-                <p class="content"> ClassyCut's Strong Hold Hair Spray, a fast-drying, non-sticky formula that keeps your look in place all day.</p>
-                <p>₹ 499 <i> ( 100ml )</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/wax.jpg" alt="Product 4">
-                <h3>Hair Wax</h3>
-                <p class="content">ClassyCut's provides hair wax delivers a strong, lexible hold with, matte texture for all-day style.</p>
-                <p>₹ 699 <i> ( 50g )</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/conditioner.jpg" alt="Product 2">
-                <h3>Hair Conditioner</h3>
-                <p class="content">classycut's hair conditioner is smooths, detangles and leaving it soft and shiny.</p>
-                <p>₹ 199 <i> ( 100ml )</i></p>
-                <button>Add To Cart</button>
-            </div>
-            
-            <div class="product-card">
-                <img src="products/shampoo.png" alt="Product 4">
-                <h3>Hair Shampoo</h3>
-                <p class="content">ClassyCut's shampoo deeply cleanses and hydrates for soft, healthy, and manageable hair.</p>
-                <p>₹ 399 <i> (100ml)</i></p>
-                <button>Add To Cart</button>
-            </div>
-            
-            <div class="product-card">
-                <img src="products/serum.jpg" alt="Product 4">
-                <h3>Hair Serum</h3>
-                <p class="content">ClassyCut's Hair Serum  a lightweight, shine, and protects your hair from heat and damage.</p>
-                <p>₹ 499 <i> (50ml)</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/hairjel.jpg" alt="Product 4">
-                <h3>Hair gel</h3>
-                <p class="content">ClassyCut's provides hair gel offers firm control and a smooth, residue-free shine for any style.</p>
-                <p>₹ 249 <i> (50g)</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/facewash.jpg" alt="Product 2">
-                <h3>Face Wash</h3>
-                <p class="content">ClassyCut's Face Wash gently cleanses and balances your skin, removing impurities for a refreshed and glow.</p>
-                <p>₹ 499 <i> (100ml)</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/facecream.jpg" alt="Product 4">
-                <h3>Face Cream</h3>
-                <p class="content">ClassyCut's hydrating face cream deeply moisturizes and rejuvenates skin for a radiant, youthful glow.</p>
-                <p>₹ 199 <i> (100ml)</i></p>
-                <button>Add To Cart</button>
-            </div>
-        
-            <div class="product-card">
-                <img src="products/beardoil2.jpg" alt="Product 4">
-                <h3>Beard Oil</h3>
-                <p class="content">ClassyCut's beard oil conditions and softens for a well-groomed, smooth beard with a subtle shine.</p>
-                <p>₹ 499 <i> ( 100ml )</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/beardcream.jpg" alt="Product 4">
-                <h3>Beard Cream</h3>
-                <p class="content">
-                    ClassyCut's beard cream tames and hydrates your beard, ensuring a smooth, polished look with every use.
-                </p>
-                <p>₹ 799 <i> ( 100g )</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/goldmask.jpg" alt="Product 4">
-                <h3>Golden Face Mask</h3>
-                <p class="content">ClassyCut's Gold Mask delivers a golden touch of luxury, illuminating your skin for a radiant glow.</p>
-                <p>₹ 1999 <i> ( 50g )</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/silvermask.jpg" alt="Product 4">
-                <h3>Silver Face Mask</h3>
-                <p class="content">ClassyCut's Silver Mask revitalizes your skin with a premium silver formula for a luminous, sophisticated glow.</p>
-                <p>₹ 1499 <i> ( 50g )</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/charcolmask.jpg" alt="Product 4">
-                <h3>Charcol Face Mask</h3>
-                <p class="content">ClassyCut's Charcoal Facial Mask detoxifies and purifies for a clear and refreshed complexion.</p>
-                <p>₹ 999 <i> ( 50g )</i></p>
-                <button>Add To Cart</button>
-            </div>
-
-            <div class="product-card">
-                <img src="products/vitaminmask.jpg" alt="Product 4">
-                <h3>Vitamin-c Face Mask</h3>
-                <p class="content">ClassyCut's Vitamin C Face mask brightens and energizes your skin, revealing a radiant and youthful complexion.</p>
-                <p>₹ 599 <i> ( 50g )</i></p>
-                <button>Add To Cart</button>
-            </div> -->
-
-            <!-- display product -->
-            <?php
-            while ($row = mysqli_fetch_assoc($all_product)) {
-                $original_price = (float) $row["p_price"];
-                $discount = isset($row["p_discount"]) ? (float) $row["p_discount"] : 0;
-                $discounted_price = $original_price - (($original_price * $discount) / 100);
-                $filter_price = $discount > 0 ? $discounted_price : $original_price;
-                $filter_name = strtolower(trim((string) $row["p_name"]));
-                $filter_desc = strtolower(trim((string) $row["p_desc"]));
-                $filter_size = trim((string) $row["p_size"]);
-                $filter_blob = trim($filter_name . " " . $filter_desc . " " . strtolower($filter_size));
-            ?>
-                <div class="product-card"
-                    data-product-card="true"
-                    data-name="<?php echo htmlspecialchars($filter_name, ENT_QUOTES); ?>"
-                    data-search="<?php echo htmlspecialchars($filter_blob, ENT_QUOTES); ?>"
-                    data-size="<?php echo htmlspecialchars($filter_size, ENT_QUOTES); ?>"
-                    data-price="<?php echo number_format($filter_price, 2, '.', ''); ?>">
-                    <img src="upload_product_photos/<?php echo $row["p_img"]; ?>" alt="Product 4">
-                    <h3><?php echo $row["p_name"]; ?></h3>
-                    <p class="content"><?php echo $row["p_desc"]; ?></p>
-                    <p class="eshop-price-wrap">
-                        <?php if ($discount > 0): ?>
-                            <span class="eshop-price-original">₹ <?php echo number_format($original_price, 2); ?></span>
-                            <span class="eshop-price-final">₹ <?php echo number_format($discounted_price, 2); ?></span>
-                            <span class="eshop-discount-badge"><?php echo number_format($discount, 0); ?>% OFF</span>
-                        <?php else: ?>
-                            <span class="eshop-price-final">₹ <?php echo number_format($original_price, 2); ?></span>
-                        <?php endif; ?>
-                        <i> ( <?php echo $row["p_size"]; ?> )</i>
-                    </p>
-                    <a href="product_display.php?id=<?php echo $row["p_id"]; ?>">
-                        <button>View Details</button>
-                    </a>
-                </div>
-            <?php
-            }
-            ?>
-
-        </div>
-        <div class="eshop-empty-state" id="eshopEmptyState" hidden>
-            No products match your filters. Try resetting or increasing your price range.
-        </div>
-        <h1><i class="fas fa-lock"></i> Unlock Premium Combos</h1>
-        <p> "Unlock the ultimate value and elevate your experience with our premium combo, offering unbeatable quality and luxury in one exclusive package."</p>
-
-        <div class="product-container">
-            <?php if (!$combo_table_ready || !$combo_products_table_ready): ?>
-                <div class="combo-empty-note">
-                    Premium combos are not available yet. Run <code>admin/setup_combo_management.php</code> once from admin.
-                </div>
-            <?php elseif ($all_combos && mysqli_num_rows($all_combos) > 0): ?>
-                <?php while ($combo_row = mysqli_fetch_assoc($all_combos)): ?>
-                    <div class="product-card combo-card">
-                        <img src="upload_product_photos/<?php echo htmlspecialchars(!empty($combo_row['image']) ? $combo_row['image'] : 'default.jpeg'); ?>" alt="Combo Image">
-                        <h3><?php echo htmlspecialchars($combo_row['name']); ?></h3>
-                        <p class="content"><?php echo htmlspecialchars($combo_row['description']); ?></p>
-                        <p class="combo-meta-line"><?php echo (int) $combo_row['products_count']; ?> products included</p>
-                        <p>₹ <?php echo number_format((float) $combo_row['price'], 2); ?></p>
-                        <a href="combo_display.php?id=<?php echo (int) $combo_row['id']; ?>">
-                            <button>View Details</button>
-                        </a>
+            <div class="product-container combo-grid-4">
+                <?php if (!$combo_table_ready || !$combo_products_table_ready): ?>
+                    <div class="combo-empty-note">
+                        Premium combos are not available yet.
                     </div>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <div class="combo-empty-note">
-                    No premium combos available right now. Please check back soon.
-                </div>
-            <?php endif; ?>
-        </div>
+                <?php elseif ($all_combos && mysqli_num_rows($all_combos) > 0): ?>
+                    <?php while ($combo_row = mysqli_fetch_assoc($all_combos)): ?>
+                        <div class="product-card combo-card">
+                            <img src="upload_product_photos/<?php echo htmlspecialchars(!empty($combo_row['image']) ? $combo_row['image'] : 'default.jpeg'); ?>" alt="Combo Image">
+                            <h3><?php echo htmlspecialchars($combo_row['name']); ?></h3>
+                            <p class="content"><?php echo htmlspecialchars($combo_row['description']); ?></p>
+                            <p class="combo-meta-line"><?php echo (int) $combo_row['products_count']; ?> products included</p>
+                            <p>₹ <?php echo number_format((float) $combo_row['price'], 2); ?></p>
+                            <a href="combo_display.php?id=<?php echo (int) $combo_row['id']; ?>">
+                                <button>View Details</button>
+                            </a>
+                        </div>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <div class="combo-empty-note">
+                        No premium combos available right now.
+                    </div>
+                <?php endif; ?>
+            </div>
+        </section>
     </div>
     <!-- /* product section */ -->
 
@@ -681,6 +742,84 @@ if ($combo_table_ready && $combo_products_table_ready) {
                 });
             };
 
+            const paginationWrapper = document.getElementById('eshopPagination');
+            let currentPage = 1;
+            const itemsPerPage = 12;
+
+            const applyPagination = function(visibleCards) {
+                const totalItems = visibleCards.length;
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+                if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+
+                const startIdx = (currentPage - 1) * itemsPerPage;
+                const endIdx = startIdx + itemsPerPage;
+
+                visibleCards.forEach(function(card, index) {
+                    card.style.display = (index >= startIdx && index < endIdx) ? '' : 'none';
+                });
+
+                renderPaginationUI(totalPages);
+            };
+
+            const renderPaginationUI = function(totalPages) {
+                paginationWrapper.innerHTML = '';
+                if (totalPages <= 1) return;
+
+                // Previous
+                const prev = document.createElement('span');
+                prev.className = 'pagination-item' + (currentPage === 1 ? ' disabled' : '');
+                prev.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                if (currentPage > 1) {
+                    prev.onclick = function() {
+                        currentPage--;
+                        runFilters();
+                        window.scrollTo({
+                            top: grid.offsetTop - 120,
+                            behavior: 'smooth'
+                        });
+                    };
+                }
+                paginationWrapper.appendChild(prev);
+
+                // Pages
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, startPage + 4);
+                if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+                for (let i = startPage; i <= endPage; i++) {
+                    const pageItem = document.createElement('span');
+                    pageItem.className = 'pagination-item' + (i === currentPage ? ' active' : '');
+                    pageItem.textContent = i;
+                    pageItem.onclick = function() {
+                        if (currentPage === i) return;
+                        currentPage = i;
+                        runFilters();
+                        window.scrollTo({
+                            top: grid.offsetTop - 120,
+                            behavior: 'smooth'
+                        });
+                    };
+                    paginationWrapper.appendChild(pageItem);
+                }
+
+                // Next
+                const next = document.createElement('span');
+                next.className = 'pagination-item' + (currentPage === totalPages ? ' disabled' : '');
+                next.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                if (currentPage < totalPages) {
+                    next.onclick = function() {
+                        currentPage++;
+                        runFilters();
+                        window.scrollTo({
+                            top: grid.offsetTop - 120,
+                            behavior: 'smooth'
+                        });
+                    };
+                }
+                paginationWrapper.appendChild(next);
+            };
+
             const applyFilters = function() {
                 const searchTerm = (searchInput.value || '').trim().toLowerCase();
                 const activeChip = sizeRail.querySelector('.eshop-size-chip.is-active');
@@ -696,7 +835,7 @@ if ($combo_table_ready && $combo_products_table_ready) {
                 priceRange.value = String(Math.round(currentMaxPrice));
                 rangeLabel.textContent = "Up to \u20B9 " + Math.round(currentMaxPrice);
 
-                let visibleCount = 0;
+                const visibleCards = [];
                 cards.forEach(function(card) {
                     const searchableText = (card.dataset.search || '').toLowerCase();
                     const sizeText = (card.dataset.size || '').toLowerCase();
@@ -707,12 +846,14 @@ if ($combo_table_ready && $combo_products_table_ready) {
                     const matchesPrice = price <= currentMaxPrice;
                     const shouldShow = matchesSearch && matchesSize && matchesPrice;
 
-                    card.style.display = shouldShow ? '' : 'none';
-                    if (shouldShow) visibleCount++;
+                    if (shouldShow) visibleCards.push(card);
+                    else card.style.display = 'none';
                 });
 
-                resultCount.textContent = visibleCount + (visibleCount === 1 ? ' product found' : ' products found');
-                emptyState.hidden = visibleCount !== 0;
+                resultCount.textContent = visibleCards.length + (visibleCards.length === 1 ? ' product found' : ' products found');
+                emptyState.hidden = visibleCards.length !== 0;
+
+                applyPagination(visibleCards);
             };
 
             const runFilters = function() {
@@ -724,15 +865,26 @@ if ($combo_table_ready && $combo_products_table_ready) {
                 const target = event.target.closest('.eshop-size-chip');
                 if (!target) return;
                 activateChip(target);
+                currentPage = 1; // Reset to page 1 on filter change
                 runFilters();
             });
 
-            searchInput.addEventListener('input', applyFilters);
-            sortSelect.addEventListener('change', runFilters);
-            maxPriceInput.addEventListener('input', applyFilters);
+            searchInput.addEventListener('input', function() {
+                currentPage = 1;
+                applyFilters();
+            });
+            sortSelect.addEventListener('change', function() {
+                currentPage = 1;
+                runFilters();
+            });
+            maxPriceInput.addEventListener('input', function() {
+                currentPage = 1;
+                applyFilters();
+            });
 
             priceRange.addEventListener('input', function() {
                 maxPriceInput.value = priceRange.value;
+                currentPage = 1;
                 applyFilters();
             });
 
@@ -743,10 +895,52 @@ if ($combo_table_ready && $combo_products_table_ready) {
                 priceRange.value = String(maxPriceLimit);
                 const allChip = sizeRail.querySelector('[data-size="all"]');
                 if (allChip) activateChip(allChip);
+                currentPage = 1;
                 runFilters();
             });
 
             runFilters();
+            // --- Height Syncing & Scroll Chaining Logic ---
+            const eshopContent = document.querySelector('.eshop-content');
+            const filterPanel = document.querySelector('.eshop-filter-panel');
+
+            const syncHeights = function() {
+                if (!eshopContent || !filterPanel) return;
+                // Match products display height EXACTLY to the filter panel's height
+                if (window.innerWidth > 1100) {
+                    const panelHeight = filterPanel.offsetHeight;
+                    eshopContent.style.maxHeight = panelHeight + 'px';
+                } else {
+                    eshopContent.style.maxHeight = 'none';
+                }
+            };
+
+            // Sync on load and resize
+            syncHeights();
+            window.addEventListener('resize', syncHeights);
+
+            if (eshopContent) {
+                eshopContent.addEventListener('wheel', function(e) {
+                    const delta = e.deltaY;
+                    const contentHeight = this.scrollHeight;
+                    const containerHeight = this.offsetHeight;
+                    const scrollTop = this.scrollTop;
+
+                    // If scrolling down at the bottom OR up at the top, let the window scroll
+                    const isAtBottom = (scrollTop + containerHeight >= contentHeight - 1);
+                    const isAtTop = (scrollTop <= 0);
+
+                    if ((delta > 0 && isAtBottom) || (delta < 0 && isAtTop)) {
+                        // Let the event propagate to the window
+                        return;
+                    }
+
+                    // Otherwise, prevent window scroll while we are inside the products area
+                    e.stopPropagation();
+                }, {
+                    passive: true
+                });
+            }
         });
     </script>
     <script src="js/script.js"></script>
