@@ -12,6 +12,7 @@ if (isset($_GET['q'])) {
 } elseif (isset($_GET['search'])) {
     $global_search_prefill = trim((string) $_GET['search']);
 }
+
 ?>
 <!-- header and navigation section -->
 

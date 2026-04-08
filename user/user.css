@@ -425,19 +425,21 @@ button:hover {
 /* =========== MOBILE ELEMENTS (Hidden on Desktop) =========== */
 .mobile-topbar {
     display: none;
-    background: var(--bg1);
+    background: linear-gradient(180deg, rgba(24, 21, 13, 0.98) 0%, rgba(24, 21, 13, 0.93) 100%);
     color: var(--white);
-    padding: 12px 24px;
+    padding: 0.55rem clamp(0.45rem, 2.5vw, 2.8%);
     align-items: center;
     justify-content: space-between;
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(6px);
     position: sticky;
     top: 0;
     z-index: 1000;
+    min-height: 3.9rem;
 }
 .mobile-topbar .mobile-logo img {
-    height: 48px;
-    width: 48px;
+    width: clamp(40px, 10.2vw, 46px);
+    height: clamp(40px, 10.2vw, 46px);
     border-radius: 50%;
     object-fit: contain;
     object-position: center;
@@ -449,14 +451,20 @@ button:hover {
     background: transparent;
     border: none;
     color: var(--white);
-    font-size: 26px;
+    font-size: 1.28rem;
     cursor: pointer;
-    padding: 8px;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem;
+    border-radius: 8px;
 }
 .menu-toggle:hover {
     color: var(--brand);
     transform: none;
-    background: transparent;
+    background: rgba(203, 185, 15, 0.12);
     box-shadow: none;
 }
 .sidebar-overlay {

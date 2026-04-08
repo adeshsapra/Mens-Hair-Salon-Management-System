@@ -5,6 +5,7 @@ require_once('pagination_helper.php');
 require_once('page_header_helper.php');
 require_once('filter_helper.php');
 require_once __DIR__ . '/../payment_integration_helpers.php';
+require_once __DIR__ . '/../notification_helpers.php';
 
 $records_per_page = 10;
 $current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
@@ -36,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableReady) {
 
         $lookupStmt = mysqli_prepare(
             $con,
-            'SELECT mt_id, pay_id, status, end_date FROM membership_transactions WHERE mt_id = ? LIMIT 1'
+            'SELECT mt_id, pay_id, user_id, membership_name, status, end_date FROM membership_transactions WHERE mt_id = ? LIMIT 1'
         );
         if (!$lookupStmt) {
             $_SESSION['toast-type'] = 'error';
@@ -70,6 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableReady) {
 
         $adminId = isset($_SESSION['admin_id']) ? (int) $_SESSION['admin_id'] : 0;
         $payId = isset($currentRow['pay_id']) ? (int) $currentRow['pay_id'] : 0;
+        $memberUserId = isset($currentRow['user_id']) ? (int) $currentRow['user_id'] : 0;
+        $membershipName = trim((string) ($currentRow['membership_name'] ?? 'Membership'));
 
         $txStarted = mysqli_begin_transaction($con);
         if (!$txStarted) {
@@ -131,6 +134,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableReady) {
 
         if ($cancelled && $paymentUpdated) {
             mysqli_commit($con);
+            if ($memberUserId > 0) {
+                notificationCreateForUser(
+                    $con,
+                    $memberUserId,
+                    'membership_status_updated',
+                    'Membership Cancelled',
+                    "Your {$membershipName} subscription was cancelled by admin.",
+                    'user/membership_user.php',
+                    'admin',
+                    $adminId,
+                    'membership',
+                    $mtId
+                );
+            }
+            notificationCreateForAllAdmins(
+                $con,
+                'membership_status_updated',
+                'Membership Cancelled',
+                "Membership transaction #{$mtId} was cancelled.",
+                'admin/membership_details.php',
+                'admin',
+                $adminId,
+                'membership',
+                $mtId
+            );
             $_SESSION['toast-type'] = 'success';
             $_SESSION['toast-msg'] = 'Membership cancelled successfully.';
         } else {

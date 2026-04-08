@@ -1,33 +1,84 @@
 <?php
-include('connect.php');
+include 'connect.php';
+require_once '../notification_helpers.php';
+require_once '../status_mailer.php';
 
-
-$ah_id = $_GET['ah_id'];
-$ah_id = mysqli_real_escape_string($con, $ah_id);
-
-
-$update_history_query = "UPDATE appointment_history SET ah_status='Cancelled' WHERE ah_id='$ah_id'";
-$update_history_result = mysqli_query($con, $update_history_query);
-
-if ($update_history_result) {
-    $select_a_id_query = "SELECT a_id FROM appointment_history WHERE ah_id='$ah_id'";
-    $a_id_result = mysqli_query($con, $select_a_id_query);
-    $a_id_row = mysqli_fetch_assoc($a_id_result);
-    $a_id = $a_id_row['a_id'];
-
-    $update_appointments_query = "UPDATE appointments SET a_status='Cancelled' WHERE a_id='$a_id'";
-    $update_appointments_result = mysqli_query($con, $update_appointments_query);
-
-    if ($update_appointments_result) {
-        header("Location:appointments_manage.php?toast=success&msg=Appointment+declined+successfully!");
-    } else {
-        echo "Error updating appointments table: " . mysqli_error($con);
-    }
-} else {
-    echo "Error updating appointment_history table: " . mysqli_error($con);
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-mysqli_close($con);
-?>
+$actorAdminId = isset($_SESSION['admin_id']) ? (int) $_SESSION['admin_id'] : 0;
+$ah_id = isset($_GET['ah_id']) ? (int) $_GET['ah_id'] : 0;
 
+if ($ah_id <= 0) {
+    header('Location: appointments_manage.php?toast=error&msg=Invalid+appointment+request.');
+    exit();
+}
 
+$appointmentResult = mysqli_query(
+    $con,
+    "SELECT ah_id, a_id, id AS user_id, ah_name, ah_email, ah_date, ah_time
+     FROM appointment_history
+     WHERE ah_id = {$ah_id}
+     LIMIT 1"
+);
+$appointmentRow = $appointmentResult ? mysqli_fetch_assoc($appointmentResult) : null;
+
+if (!$appointmentRow) {
+    header('Location: appointments_manage.php?toast=error&msg=Appointment+not+found.');
+    exit();
+}
+
+$a_id = (int) $appointmentRow['a_id'];
+$userId = (int) ($appointmentRow['user_id'] ?? 0);
+$clientName = trim((string) ($appointmentRow['ah_name'] ?? 'User'));
+$clientEmail = trim((string) ($appointmentRow['ah_email'] ?? ''));
+$appDate = trim((string) ($appointmentRow['ah_date'] ?? ''));
+$appTime = trim((string) ($appointmentRow['ah_time'] ?? ''));
+
+$updateHistory = mysqli_query($con, "UPDATE appointment_history SET ah_status='Cancelled' WHERE ah_id={$ah_id}");
+$updateAppointments = mysqli_query($con, "UPDATE appointments SET a_status='Cancelled' WHERE a_id={$a_id}");
+
+if ($updateHistory && $updateAppointments) {
+    if ($userId > 0) {
+        notificationCreateForUser(
+            $con,
+            $userId,
+            'appointment_status_updated',
+            'Appointment Cancelled',
+            "Your appointment #{$a_id} for {$appDate} at {$appTime} was cancelled by admin.",
+            'user/appointment_user.php',
+            'admin',
+            $actorAdminId,
+            'appointment',
+            $a_id
+        );
+    }
+
+    notificationCreateForAllAdmins(
+        $con,
+        'appointment_status_updated',
+        'Appointment Cancelled',
+        "{$clientName}'s appointment #{$a_id} was cancelled.",
+        'admin/appointments_manage.php',
+        'admin',
+        $actorAdminId,
+        'appointment',
+        $a_id
+    );
+
+    sendAppointmentStatusEmail(
+        $clientEmail,
+        $clientName,
+        $a_id,
+        'Cancelled',
+        $appDate,
+        $appTime
+    );
+
+    header('Location: appointments_manage.php?toast=success&msg=Appointment+declined+successfully!');
+    exit();
+}
+
+header('Location: appointments_manage.php?toast=error&msg=Failed+to+decline+appointment.');
+exit();

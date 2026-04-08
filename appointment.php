@@ -1,5 +1,6 @@
 <?php
 include('connect.php');
+require_once __DIR__ . '/notification_helpers.php';
     if(isset($_POST['make']) || isset($_POST['shedule_btn'])){
         session_start();
         if(!isset($_SESSION['user_id'])){
@@ -96,6 +97,30 @@ if (isset($_POST['a-btn'])) {
             mysqli_query($con, $update_history_query);
 
             if ($update_result) {
+                $userMessage = "Your appointment #{$app_id} was updated for {$a_date} at {$time12}.";
+                notificationCreateForUser(
+                    $con,
+                    $user_id,
+                    'appointment_updated',
+                    'Appointment Updated',
+                    $userMessage,
+                    'user/appointment_user.php',
+                    'user',
+                    $user_id,
+                    'appointment',
+                    (int) $app_id
+                );
+                notificationCreateForAllAdmins(
+                    $con,
+                    'appointment_updated',
+                    'Appointment Updated by User',
+                    "{$a_name} updated appointment #{$app_id} to {$a_date} {$time12}.",
+                    'admin/appointments_manage.php',
+                    'user',
+                    $user_id,
+                    'appointment',
+                    (int) $app_id
+                );
                 header('Location: thankyou_appointment.php');
                 exit();
             } else {
@@ -110,6 +135,29 @@ if (isset($_POST['a-btn'])) {
             mysqli_query($con, "INSERT INTO appointment_history (a_id, ah_name, ah_email, ah_no, ah_date, ah_time, ah_category, ah_type, ah_status, id) VALUES ('$app_id', '$a_name', '$a_email', '$a_no', '$a_date', '$time12', '$a_category', '$a_type', 'Pending', '$user_id')");
 
             if ($insert) {
+                notificationCreateForUser(
+                    $con,
+                    $user_id,
+                    'appointment_booked',
+                    'Appointment Booked',
+                    "Your appointment request for {$a_category} ({$a_type}) is booked on {$a_date} at {$time12}.",
+                    'user/appointment_user.php',
+                    'user',
+                    $user_id,
+                    'appointment',
+                    (int) $app_id
+                );
+                notificationCreateForAllAdmins(
+                    $con,
+                    'appointment_booked',
+                    'New Appointment Booked',
+                    "{$a_name} booked an appointment for {$a_date} at {$time12}.",
+                    'admin/appointments_manage.php',
+                    'user',
+                    $user_id,
+                    'appointment',
+                    (int) $app_id
+                );
                 header('Location: thankyou_appointment.php');
                 exit();
             } else {

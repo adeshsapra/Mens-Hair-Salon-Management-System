@@ -2,6 +2,7 @@
 include 'connect.php';
 require_once '../stripe_config.php';
 require_once '../vendor/autoload.php';
+require_once '../notification_helpers.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -388,6 +389,8 @@ if ($duplicateIntent && mysqli_num_rows($duplicateIntent) > 0) {
 mysqli_begin_transaction($con);
 
 try {
+    $createdSaleIds = [];
+
     foreach ($items as $item) {
         $itemType = $item['item_type'] ?? 'product';
         $buyQty = (int) $item['buy_quantity'];
@@ -424,6 +427,7 @@ try {
         }
 
         $saleId = (int) mysqli_insert_id($con);
+        $createdSaleIds[] = $saleId;
 
         $insertPayment = mysqli_query(
             $con,
@@ -452,6 +456,40 @@ try {
     }
 
     mysqli_commit($con);
+
+    if (!empty($createdSaleIds)) {
+        $firstSaleId = (int) $createdSaleIds[0];
+        $itemCount = 0;
+        foreach ($items as $item) {
+            $itemCount += (int) ($item['buy_quantity'] ?? 0);
+        }
+        $amountLabel = number_format((float) $grand_total, 2);
+
+        notificationCreateForUser(
+            $con,
+            $user_id,
+            'order_placed',
+            'Order Placed Successfully',
+            "Your order #{$firstSaleId} for {$itemCount} item(s) worth ₹{$amountLabel} was placed.",
+            'user/order.php',
+            'user',
+            $user_id,
+            'order',
+            $firstSaleId
+        );
+        notificationCreateForAllAdmins(
+            $con,
+            'order_placed',
+            'New Product Order',
+            "User #{$user_id} placed Stripe order #{$firstSaleId} for ₹{$amountLabel}.",
+            'admin/manage_orders.php',
+            'user',
+            $user_id,
+            'order',
+            $firstSaleId
+        );
+    }
+
     $_SESSION['toast-type'] = 'success';
     $_SESSION['toast-msg'] = 'Payment successful! Order placed.';
     header('Location:thankyou_order.php');

@@ -6,6 +6,10 @@ require_once '../user/wallet_helpers.php';
 require_once 'pagination_helper.php';
 require_once 'page_header_helper.php';
 require_once 'filter_helper.php';
+require_once '../notification_helpers.php';
+require_once '../status_mailer.php';
+
+$actorAdminId = isset($admin_id) ? (int) $admin_id : 0;
 
 // Filter Configuration
 $filterConfig = [
@@ -39,9 +43,11 @@ if (isset($_GET['action']) && isset($_GET['s_id'])) {
     } elseif ($action === 'refund') {
         $orderResult = mysqli_query(
             $con,
-            "SELECT ps.s_id, ps.id AS user_id, ps.s_total, ps.s_status, pay.pay_id, pay.p_method, pay.p_status
+            "SELECT ps.s_id, ps.id AS user_id, ps.s_total, ps.s_status, pay.pay_id, pay.p_method, pay.p_status,
+                    ur.name AS user_name, ur.email AS user_email
              FROM product_sales ps
              LEFT JOIN payment pay ON ps.s_id = pay.s_id
+             LEFT JOIN user_reg ur ON ps.id = ur.id
              WHERE ps.s_id = {$s_id}
              LIMIT 1"
         );
@@ -57,6 +63,8 @@ if (isset($_GET['action']) && isset($_GET['s_id'])) {
         $orderStatus = strtolower(trim($orderRow['s_status'] ?? ''));
         $refundUserId = (int) $orderRow['user_id'];
         $refundAmount = (float) $orderRow['s_total'];
+        $refundUserName = trim((string) ($orderRow['user_name'] ?? ''));
+        $refundUserEmail = trim((string) ($orderRow['user_email'] ?? ''));
 
         if (!in_array($paymentMethod, ['stripe', 'wallet'], true) || $orderStatus !== 'cancelled') {
             echo "<script>alert('Refund action allowed only for cancelled Stripe/Wallet orders.'); window.location.href='manage_orders.php';</script>";
@@ -106,6 +114,39 @@ if (isset($_GET['action']) && isset($_GET['s_id'])) {
             }
 
             mysqli_commit($con);
+
+            notificationCreateForUser(
+                $con,
+                $refundUserId,
+                'order_status_updated',
+                'Order Refunded',
+                "Your order #{$s_id} was refunded and amount credited to your wallet.",
+                'user/order.php',
+                'admin',
+                $actorAdminId,
+                'order',
+                $s_id
+            );
+            notificationCreateForAllAdmins(
+                $con,
+                'order_status_updated',
+                'Order Refunded',
+                "Order #{$s_id} has been marked refunded.",
+                'admin/manage_orders.php',
+                'admin',
+                $actorAdminId,
+                'order',
+                $s_id
+            );
+            sendOrderStatusEmail(
+                $refundUserEmail,
+                $refundUserName,
+                $s_id,
+                'refunded',
+                $refundAmount,
+                "Your order #{$s_id} has been refunded and the amount is credited to your wallet."
+            );
+
             echo "<script>alert('Refund processed and wallet credited successfully.'); window.location.href='manage_orders.php';</script>";
             exit;
         } catch (Exception $e) {
@@ -116,6 +157,20 @@ if (isset($_GET['action']) && isset($_GET['s_id'])) {
     }
 
     if ($new_status !== '') {
+        $orderMeta = mysqli_query(
+            $con,
+            "SELECT ps.s_id, ps.id AS user_id, ps.s_total, ur.name AS user_name, ur.email AS user_email
+             FROM product_sales ps
+             LEFT JOIN user_reg ur ON ps.id = ur.id
+             WHERE ps.s_id = {$s_id}
+             LIMIT 1"
+        );
+        $orderMetaRow = $orderMeta ? mysqli_fetch_assoc($orderMeta) : null;
+        $orderUserId = $orderMetaRow ? (int) ($orderMetaRow['user_id'] ?? 0) : 0;
+        $orderUserName = $orderMetaRow ? trim((string) ($orderMetaRow['user_name'] ?? '')) : '';
+        $orderUserEmail = $orderMetaRow ? trim((string) ($orderMetaRow['user_email'] ?? '')) : '';
+        $orderTotal = $orderMetaRow ? (float) ($orderMetaRow['s_total'] ?? 0) : null;
+
         $update = mysqli_query($con, "UPDATE product_sales SET s_status = '$new_status' WHERE s_id = $s_id");
         
         // Log the status update with timestamp
@@ -127,6 +182,41 @@ if (isset($_GET['action']) && isset($_GET['s_id'])) {
         }
         
         if ($update) {
+            if ($orderUserId > 0) {
+                notificationCreateForUser(
+                    $con,
+                    $orderUserId,
+                    'order_status_updated',
+                    'Order Status Updated',
+                    "Your order #{$s_id} status changed to " . ucfirst($new_status) . '.',
+                    'user/order.php',
+                    'admin',
+                    $actorAdminId,
+                    'order',
+                    $s_id
+                );
+            }
+
+            notificationCreateForAllAdmins(
+                $con,
+                'order_status_updated',
+                'Order Status Changed',
+                "Order #{$s_id} is now " . ucfirst($new_status) . '.',
+                'admin/manage_orders.php',
+                'admin',
+                $actorAdminId,
+                'order',
+                $s_id
+            );
+            sendOrderStatusEmail(
+                $orderUserEmail,
+                $orderUserName,
+                $s_id,
+                $new_status,
+                $orderTotal,
+                "Your order #{$s_id} status has changed to " . ucfirst($new_status) . '.'
+            );
+
             header("Location: manage_orders.php?toast=success&msg=" . urlencode('Order ' . ucfirst($new_status) . ' successfully!'));
             exit();
         } else {

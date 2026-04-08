@@ -2,6 +2,7 @@
 include 'connect.php';
 require_once 'wallet_helpers.php';
 require_once '../stripe_config.php';
+require_once '../notification_helpers.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -350,6 +351,39 @@ function createOrderFromItems($con, $userId, $items, $grandTotal, $productId, $c
         }
 
         mysqli_commit($con);
+
+        if (!empty($createdSaleIds)) {
+            $firstSaleId = (int) $createdSaleIds[0];
+            $itemCount = 0;
+            foreach ($items as $item) {
+                $itemCount += (int) ($item['buy_quantity'] ?? 0);
+            }
+            $amountLabel = number_format($grandTotal, 2);
+            notificationCreateForUser(
+                $con,
+                $userId,
+                'order_placed',
+                'Order Placed Successfully',
+                "Your order #{$firstSaleId} for {$itemCount} item(s) worth ₹{$amountLabel} was placed.",
+                'user/order.php',
+                'user',
+                $userId,
+                'order',
+                $firstSaleId
+            );
+            notificationCreateForAllAdmins(
+                $con,
+                'order_placed',
+                'New Product Order',
+                "User #{$userId} placed order #{$firstSaleId} for ₹{$amountLabel}.",
+                'admin/manage_orders.php',
+                'user',
+                $userId,
+                'order',
+                $firstSaleId
+            );
+        }
+
         return ['success' => true, 'message' => 'Order placed successfully'];
     } catch (Exception $e) {
         mysqli_rollback($con);

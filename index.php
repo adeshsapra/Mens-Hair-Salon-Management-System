@@ -202,9 +202,6 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
     </section>
 
     <div class="contact-main-container" id="contact">
-        <?php if ($show_contact_sent): ?>
-            <div class="contact-success-banner" role="status">Thank you! Your message was sent successfully.</div>
-        <?php endif; ?>
         <div class="contact-container">
             <div class="contact-form">
                 <h2>Contact Us</h2>
@@ -243,6 +240,62 @@ if (isset($_POST['make']) || isset($_POST['shedule_btn'])) {
             </div>
         </div>
     </div>
+    <?php if ($show_contact_sent): ?>
+        <div class="contact-success-popup-overlay" id="contactSuccessPopup" role="dialog" aria-modal="true" aria-labelledby="contactSuccessTitle">
+            <div class="contact-success-popup" role="document">
+                <button type="button" class="contact-success-popup__close" id="contactSuccessClose" aria-label="Close success message">&times;</button>
+                <div class="contact-success-popup__icon" aria-hidden="true"><i class="fas fa-circle-check"></i></div>
+                <div class="contact-success-popup__chip">ClassyCut Support</div>
+                <h3 id="contactSuccessTitle">Message Sent Successfully</h3>
+                <p>Thank you for contacting us. Our team will review your message and get back to you shortly.</p>
+                <div class="contact-success-popup__meta">Auto closing in 5 seconds</div>
+                <div class="contact-success-popup__progress" aria-hidden="true"><span></span></div>
+            </div>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var popup = document.getElementById('contactSuccessPopup');
+                var closeBtn = document.getElementById('contactSuccessClose');
+                if (!popup) return;
+
+                popup.classList.add('show');
+
+                function cleanContactSuccessQuery() {
+                    try {
+                        var url = new URL(window.location.href);
+                        if (url.searchParams.get('contact') === 'sent') {
+                            url.searchParams.delete('contact');
+                            var cleanUrl = url.pathname + (url.search ? url.search : '') + (url.hash || '#contact');
+                            window.history.replaceState({}, '', cleanUrl);
+                        }
+                    } catch (e) {
+                        // Ignore URL parsing issues in old browsers
+                    }
+                }
+
+                function closePopup() {
+                    popup.classList.remove('show');
+                    setTimeout(function () {
+                        if (popup && popup.parentNode) {
+                            popup.parentNode.removeChild(popup);
+                        }
+                        cleanContactSuccessQuery();
+                    }, 220);
+                }
+
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', closePopup);
+                }
+                popup.addEventListener('click', function (event) {
+                    if (event.target === popup) {
+                        closePopup();
+                    }
+                });
+
+                setTimeout(closePopup, 5000);
+            });
+        </script>
+    <?php endif; ?>
 
     <!-- opening hours (after contact) -->
 

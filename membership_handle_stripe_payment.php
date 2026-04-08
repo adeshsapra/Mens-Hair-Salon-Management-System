@@ -3,6 +3,7 @@ require_once __DIR__ . '/connect.php';
 require_once __DIR__ . '/stripe_config.php';
 require_once __DIR__ . '/payment_integration_helpers.php';
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/notification_helpers.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -195,6 +196,30 @@ if (!$paymentInsertOk || !$membershipInsertOk) {
 }
 
 mysqli_commit($con);
+
+notificationCreateForUser(
+    $con,
+    $user_id,
+    'membership_purchased',
+    'Membership Activated',
+    "Your {$membershipType} membership is now active.",
+    'user/membership_user.php',
+    'user',
+    $user_id,
+    'membership',
+    $paymentId
+);
+notificationCreateForAllAdmins(
+    $con,
+    'membership_purchased',
+    'New Membership Purchase',
+    "User #{$user_id} purchased {$membershipType} for ₹" . number_format($price, 2) . '.',
+    'admin/membership_details.php',
+    'user',
+    $user_id,
+    'membership',
+    $paymentId
+);
 
 $_SESSION['toast-type'] = 'success';
 $_SESSION['toast-msg'] = 'Membership purchased successfully.';

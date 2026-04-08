@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 include 'connect.php';
+require_once '../notification_helpers.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../login.php');
@@ -90,6 +91,29 @@ try {
         }
 
         mysqli_commit($con);
+        notificationCreateForUser(
+            $con,
+            $user_id,
+            'order_status_updated',
+            'Order Cancelled',
+            "You cancelled order #{$order_id}.",
+            'user/order.php',
+            'user',
+            $user_id,
+            'order',
+            $order_id
+        );
+        notificationCreateForAllAdmins(
+            $con,
+            'order_status_updated',
+            'Order Cancelled by User',
+            "User #{$user_id} cancelled order #{$order_id}.",
+            'admin/manage_orders.php',
+            'user',
+            $user_id,
+            'order',
+            $order_id
+        );
         header('Location: order.php?toast=success&msg=Order+cancelled+successfully.');
         exit;
     }
@@ -132,6 +156,29 @@ try {
     }
 
     mysqli_commit($con);
+    notificationCreateForUser(
+        $con,
+        $user_id,
+        'order_status_updated',
+        'Order Cancellation Requested',
+        "Your order #{$order_id} is cancelled and refund is being processed.",
+        'user/order.php',
+        'user',
+        $user_id,
+        'order',
+        $order_id
+    );
+    notificationCreateForAllAdmins(
+        $con,
+        'order_status_updated',
+        'Refund Pending from User Cancellation',
+        "User #{$user_id} cancelled order #{$order_id}; refund is pending.",
+        'admin/manage_orders.php',
+        'user',
+        $user_id,
+        'order',
+        $order_id
+    );
     header('Location: order.php?toast=success&msg=Order+cancelled+successfully.+Refunded+to+wallet.');
     exit;
 } catch (Exception $e) {

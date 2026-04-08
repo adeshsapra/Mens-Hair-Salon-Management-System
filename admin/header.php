@@ -1,6 +1,7 @@
 <?php
 ob_start();
 include 'connect.php';
+require_once __DIR__ . '/../notification_helpers.php';
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -17,6 +18,36 @@ $adminName = 'Admin';
 if ($admin_result) {
     if ($row = mysqli_fetch_assoc($admin_result)) {
         $adminName = $row['admin_name'];
+    }
+}
+
+$admin_notification_unread = 0;
+$admin_notification_items = [];
+if ($admin_id > 0) {
+    $admin_notification_unread = notificationGetUnreadCount($con, 'admin', $admin_id);
+    $admin_notification_items = notificationGetRecent($con, 'admin', $admin_id, 4);
+}
+
+if (!function_exists('renderAdminNotificationPreview')) {
+    function renderAdminNotificationPreview($items)
+    {
+        if (empty($items)) {
+            echo '<div class="admin-notif-empty">No notifications yet.</div>';
+            return;
+        }
+
+        foreach ($items as $item) {
+            $isUnread = (int) ($item['is_read'] ?? 0) === 0;
+            $itemClass = $isUnread ? 'admin-notif-item unread' : 'admin-notif-item';
+            $href = notificationResolveLink($item['link_url'] ?? '');
+            echo '<a class="' . $itemClass . '" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '">';
+            echo '<div class="admin-notif-row">';
+            echo '<h5>' . htmlspecialchars((string) ($item['title'] ?? ''), ENT_QUOTES, 'UTF-8') . '</h5>';
+            echo '<span>' . htmlspecialchars(notificationFormatTimeAgo($item['created_at'] ?? ''), ENT_QUOTES, 'UTF-8') . '</span>';
+            echo '</div>';
+            echo '<p>' . htmlspecialchars((string) ($item['message'] ?? ''), ENT_QUOTES, 'UTF-8') . '</p>';
+            echo '</a>';
+        }
     }
 }
 ?>
@@ -68,6 +99,235 @@ if ($admin_result) {
         .active > .has-submenu .submenu-caret {
             transform: rotate(180deg);
         }
+        .header .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .admin-notif-wrap {
+            position: relative;
+            margin-right: 0;
+            z-index: 1300;
+            display: inline-flex;
+            align-items: center;
+        }
+        .admin-notif-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 0;
+            background: #f2eecf;
+            color: #18150d;
+            font-size: 17px;
+            cursor: pointer;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .admin-notif-btn i {
+            color: #18150d !important;
+            margin: 0 !important;
+        }
+        .admin-profile-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            z-index: 1350;
+        }
+        .admin-profile-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--bg2);
+            color: var(--bg1);
+            border: none;
+            margin: 0 2rem 0 0;
+            padding: 0;
+            cursor: pointer;
+            font-size: 25px;
+            font-weight: 600;
+            line-height: 1;
+            text-transform: none;
+        }
+        .admin-profile-btn i {
+            margin: 0 !important;
+            color: var(--bg1) !important;
+        }
+        .admin-profile-menu {
+            display: block;
+            position: absolute;
+            top: 54px;
+            right: 0;
+            min-width: 220px;
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 14px;
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(8px);
+            transition: all 0.2s ease;
+        }
+        .admin-profile-wrap:hover .admin-profile-menu,
+        .admin-profile-wrap.open .admin-profile-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .admin-profile-head {
+            margin: 0;
+            padding: 12px 14px;
+            color: #1d1d1d;
+            font-size: 13px;
+            font-weight: 600;
+            border-bottom: 1px solid #ececec;
+            background: #faf7e9;
+            text-transform: none;
+        }
+        .admin-profile-menu a {
+            display: block;
+            padding: 11px 14px;
+            color: #1d1d1d;
+            font-size: 15px;
+            font-weight: 500;
+            text-transform: none;
+        }
+        .admin-profile-menu a:hover {
+            background: #f5f5f5;
+        }
+        .admin-notif-btn:hover {
+            background: #cbb90f;
+        }
+        .admin-notif-badge {
+            position: absolute;
+            top: -4px;
+            right: -3px;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+        }
+        .admin-notif-dropdown {
+            position: absolute;
+            top: 54px;
+            right: 0;
+            width: 360px;
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 18px 45px rgba(0,0,0,0.2);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(8px);
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        .admin-notif-wrap:hover .admin-notif-dropdown,
+        .admin-notif-wrap.open .admin-notif-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .admin-notif-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            border-bottom: 1px solid #ececec;
+            background: #faf7e9;
+        }
+        .admin-notif-head h4 {
+            margin: 0;
+            font-size: 15px;
+            color: #1d1d1d;
+        }
+        .admin-notif-head span {
+            font-size: 12px;
+            font-weight: 700;
+            color: #cbb90f;
+        }
+        .admin-notif-list {
+            max-height: 310px;
+            overflow-y: auto;
+        }
+        .admin-notif-item {
+            display: block;
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f1f1;
+            color: #222;
+            text-decoration: none;
+        }
+        .admin-notif-item.unread {
+            background: #fff9db;
+        }
+        .admin-notif-item:hover {
+            background: #f6f6f6;
+        }
+        .admin-notif-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 3px;
+        }
+        .admin-notif-row h5 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1d1d1d;
+        }
+        .admin-notif-row span {
+            font-size: 11px;
+            color: #777;
+            white-space: nowrap;
+        }
+        .admin-notif-item p {
+            margin: 0;
+            font-size: 12px;
+            color: #5a5a5a;
+            line-height: 1.4;
+        }
+        .admin-notif-empty {
+            padding: 20px 14px;
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+        }
+        .admin-notif-view-all {
+            display: block;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #18150d;
+            background: #f5f5f5;
+            padding: 11px 14px;
+            text-decoration: none;
+        }
+        .admin-notif-view-all:hover {
+            background: #cbb90f;
+        }
+        @media (max-width: 768px) {
+            .admin-notif-dropdown {
+                width: min(360px, calc(100vw - 20px));
+                right: -12px;
+            }
+            .admin-profile-btn {
+                margin-right: 0;
+            }
+            .admin-profile-menu {
+                right: -6px;
+                min-width: 210px;
+            }
+        }
     </style>
     <script>
         function toggleSubmenu(event) {
@@ -95,6 +355,40 @@ if ($admin_result) {
                     }
                 }
             });
+
+            const notifWrap = document.getElementById('adminNotifWrap');
+            const notifBtn = notifWrap ? notifWrap.querySelector('.admin-notif-btn') : null;
+            if (notifWrap && notifBtn) {
+                notifBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    notifWrap.classList.toggle('open');
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!event.target.closest('#adminNotifWrap')) {
+                        notifWrap.classList.remove('open');
+                    }
+                });
+            }
+
+            const profileWrap = document.getElementById('adminProfileWrap');
+            const profileBtn = profileWrap ? profileWrap.querySelector('.admin-profile-btn') : null;
+            if (profileWrap && profileBtn) {
+                profileBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const isOpen = profileWrap.classList.toggle('open');
+                    profileBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!event.target.closest('#adminProfileWrap')) {
+                        profileWrap.classList.remove('open');
+                        profileBtn.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            }
         });
     </script>
 </head>
@@ -102,10 +396,30 @@ if ($admin_result) {
 
 <div class="header">
     <div class="user-profile">
-        <div class="dropdown">
-            <button class="dropbtn"><i class="fas fa-user-circle" id="admin-icon"></i>Admin</button>
-            <div class="dropdown-content">
-            <p style="color:black;padding:10px;padding-left:20px;">Name: <?php echo $adminName ?></p>                
+        <div class="admin-notif-wrap" id="adminNotifWrap">
+            <button type="button" class="admin-notif-btn" aria-label="Notifications">
+                <i class="fas fa-bell"></i>
+                <?php if ($admin_notification_unread > 0): ?>
+                    <span class="admin-notif-badge"><?php echo (int) min(99, $admin_notification_unread); ?><?php echo $admin_notification_unread > 99 ? '+' : ''; ?></span>
+                <?php endif; ?>
+            </button>
+            <div class="admin-notif-dropdown">
+                <div class="admin-notif-head">
+                    <h4>Notifications</h4>
+                    <?php if ($admin_notification_unread > 0): ?>
+                        <span><?php echo (int) $admin_notification_unread; ?> new</span>
+                    <?php endif; ?>
+                </div>
+                <div class="admin-notif-list">
+                    <?php renderAdminNotificationPreview($admin_notification_items); ?>
+                </div>
+                <a href="notifications.php" class="admin-notif-view-all">View all notifications</a>
+            </div>
+        </div>
+        <div class="dropdown admin-profile-wrap" id="adminProfileWrap">
+            <button type="button" class="dropbtn admin-profile-btn" aria-expanded="false"><i class="fas fa-user-circle" id="admin-icon"></i>Admin</button>
+            <div class="dropdown-content admin-profile-menu">
+            <p class="admin-profile-head">Name: <?php echo htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8'); ?></p>                
             <a href="manage_admin.php">Manage Admin</a>
                 <a href="change_password.php">Change Password</a>
                 <a href="logout.php">Logout</a>
@@ -147,6 +461,7 @@ if ($admin_result) {
         <li><a href="service_manage.php"><i class="fas fa-cut"></i> Service Catalog</a></li>
         <li><a href="payment_integrations.php"><i class="fas fa-credit-card"></i> Payment Integrations</a></li>
         <li><a href="payment_manage.php"><i class="fas fa-box"></i> Payment Management</a></li>
+        <li><a href="notifications.php"><i class="fas fa-bell"></i> Notifications</a></li>
         <li><a href="database_backup.php"><i class="fas fa-database"></i> Backup & Restore</a></li>
         <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Sign Out</a></li>
     </ul>

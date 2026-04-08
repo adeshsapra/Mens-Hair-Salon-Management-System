@@ -1,9 +1,14 @@
 <?php
 ob_start();
 include 'connect.php';
+require_once __DIR__ . '/../notification_helpers.php';
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+$user_notification_unread = 0;
+$user_notification_items = [];
+$user_id = 0;
 
 if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
@@ -23,6 +28,34 @@ if (isset($_SESSION['user_id'])) {
 }
 else {
     $profile_image = '../upload_img/default.jpeg';
+}
+
+if ($user_id > 0) {
+    $user_notification_unread = notificationGetUnreadCount($con, 'user', $user_id);
+    $user_notification_items = notificationGetRecent($con, 'user', $user_id, 4);
+}
+
+if (!function_exists('renderUserNotificationPreview')) {
+    function renderUserNotificationPreview($items)
+    {
+        if (empty($items)) {
+            echo '<div class="notif-empty">No notifications yet.</div>';
+            return;
+        }
+
+        foreach ($items as $item) {
+            $isUnread = (int) ($item['is_read'] ?? 0) === 0;
+            $itemClass = $isUnread ? 'notif-item unread' : 'notif-item';
+            $href = notificationResolveLink($item['link_url'] ?? '');
+            echo '<a class="' . $itemClass . '" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '">';
+            echo '<div class="notif-title-row">';
+            echo '<h5>' . htmlspecialchars((string) ($item['title'] ?? ''), ENT_QUOTES, 'UTF-8') . '</h5>';
+            echo '<span>' . htmlspecialchars(notificationFormatTimeAgo($item['created_at'] ?? ''), ENT_QUOTES, 'UTF-8') . '</span>';
+            echo '</div>';
+            echo '<p>' . htmlspecialchars((string) ($item['message'] ?? ''), ENT_QUOTES, 'UTF-8') . '</p>';
+            echo '</a>';
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -44,9 +77,31 @@ else {
             <div class="mobile-logo">
                 <img src="../upload_img/<?php echo $profile_image; ?>" alt="Salon Logo">
             </div>
-            <button class="menu-toggle" id="menuToggle">
-                <i class="fas fa-bars"></i>
-            </button>
+            <div class="mobile-topbar-actions">
+                <div class="notif-wrap" id="userNotifMobile">
+                    <button type="button" class="notif-btn" aria-label="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <?php if ($user_notification_unread > 0): ?>
+                            <span class="notif-badge"><?php echo (int) min(99, $user_notification_unread); ?><?php echo $user_notification_unread > 99 ? '+' : ''; ?></span>
+                        <?php endif; ?>
+                    </button>
+                    <div class="notif-dropdown">
+                        <div class="notif-head">
+                            <h4>Notifications</h4>
+                            <?php if ($user_notification_unread > 0): ?>
+                                <span><?php echo (int) $user_notification_unread; ?> new</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="notif-list">
+                            <?php renderUserNotificationPreview($user_notification_items); ?>
+                        </div>
+                        <a class="notif-view-all" href="notifications.php">View all notifications</a>
+                    </div>
+                </div>
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
         </div>
         
         <!-- Overlay for closing sidebar on mobile -->
@@ -55,6 +110,28 @@ else {
         <aside class="sidebar" id="sidebar">
             <div class="logo">
                 <img src="../upload_img/<?php echo $profile_image; ?>" alt="Salon Logo">
+            </div>
+            <div class="sidebar-notification">
+                <div class="notif-wrap" id="userNotifDesktop">
+                    <button type="button" class="notif-btn" aria-label="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <?php if ($user_notification_unread > 0): ?>
+                            <span class="notif-badge"><?php echo (int) min(99, $user_notification_unread); ?><?php echo $user_notification_unread > 99 ? '+' : ''; ?></span>
+                        <?php endif; ?>
+                    </button>
+                    <div class="notif-dropdown">
+                        <div class="notif-head">
+                            <h4>Notifications</h4>
+                            <?php if ($user_notification_unread > 0): ?>
+                                <span><?php echo (int) $user_notification_unread; ?> new</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="notif-list">
+                            <?php renderUserNotificationPreview($user_notification_items); ?>
+                        </div>
+                        <a class="notif-view-all" href="notifications.php">View all notifications</a>
+                    </div>
+                </div>
             </div>
             <nav>
                 <?php $current_page = basename($_SERVER['PHP_SELF']); ?>
@@ -70,6 +147,7 @@ else {
                     </li>
                     <li><a href="membership_user.php" class="<?= ($current_page == 'membership_user.php') ? 'active' : '' ?>"><i class="fas fa-cogs"></i> Membership</a></li>
                     <li><a href="payment_user.php" class="<?= ($current_page == 'payment_user.php' || $current_page == 'checkout.php') ? 'active' : '' ?>"><i class="fas fa-user-cog"></i> Payments</a></li>
+                    <li><a href="notifications.php" class="<?= ($current_page == 'notifications.php') ? 'active' : '' ?>"><i class="fas fa-bell"></i> Notifications</a></li>
                     <li><a href="user_wallet.php" class="<?= ($current_page == 'user_wallet.php') ? 'active' : '' ?>"><i class="fas fa-wallet"></i> Wallet</a></li>
                     <li><a href="settings.php" class="<?= ($current_page == 'settings.php' || $current_page == 'edit_profile.php' || $current_page == 'change_password.php') ? 'active' : '' ?>"><i class="fas fa-user-cog"></i> User Settings</a></li>
                     <li><a href="user_logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
@@ -97,12 +175,286 @@ else {
 
         menuToggle.addEventListener('click', toggleSidebar);
         overlay.addEventListener('click', toggleSidebar);
+
+        // Notification dropdowns (click support for mobile + desktop)
+        const notifWraps = document.querySelectorAll('.notif-wrap');
+        const hoverLockStorageKey = 'userNotifHoverLockUntil';
+        const hoverLockUntil = parseInt(sessionStorage.getItem(hoverLockStorageKey) || '0', 10);
+
+        if (hoverLockUntil > Date.now()) {
+            document.body.classList.add('notif-hover-lock');
+            setTimeout(() => {
+                document.body.classList.remove('notif-hover-lock');
+                sessionStorage.removeItem(hoverLockStorageKey);
+            }, hoverLockUntil - Date.now());
+        } else {
+            sessionStorage.removeItem(hoverLockStorageKey);
+        }
+
+        notifWraps.forEach((wrap) => {
+            const btn = wrap.querySelector('.notif-btn');
+            if (!btn) return;
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                notifWraps.forEach((el) => {
+                    if (el !== wrap) {
+                        el.classList.remove('open');
+                    }
+                });
+                wrap.classList.toggle('open');
+            });
+        });
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.notif-wrap')) {
+                notifWraps.forEach((wrap) => wrap.classList.remove('open'));
+            }
+        });
+
+        // Prevent hover flicker immediately after page navigation from sidebar menu click
+        document.querySelectorAll('.sidebar nav a[href]').forEach((link) => {
+            const href = (link.getAttribute('href') || '').trim();
+            if (!href || href === '#' || href.startsWith('javascript:')) {
+                return;
+            }
+            link.addEventListener('click', () => {
+                sessionStorage.setItem(hoverLockStorageKey, String(Date.now() + 1000));
+            });
+        });
     </script>
     
 <!-- ========================================== -->
 <!-- GLOBAL TOAST & MODAL SYSTEM (User Dashboard) -->
 <!-- ========================================== -->
 <style>
+/* Notifications */
+.mobile-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+.sidebar-notification {
+    display: flex;
+    justify-content: flex-end;
+    margin: 4px 0 16px;
+    padding-right: 10px;
+}
+.notif-wrap {
+    position: relative;
+    z-index: 1200;
+}
+.notif-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: #f4eed5;
+    color: #201b0f;
+    cursor: pointer;
+    font-size: 17px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 14px rgba(24, 21, 13, 0.18);
+    position: relative;
+}
+.notif-btn:hover {
+    background: #cbb90f;
+}
+.mobile-topbar .notif-btn {
+    width: 2.35rem;
+    height: 2.35rem;
+    min-width: 2.35rem;
+    min-height: 2.35rem;
+    max-width: 2.35rem;
+    max-height: 2.35rem;
+    flex: 0 0 2.35rem;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    border-radius: 999px;
+    box-sizing: border-box;
+    line-height: 1;
+    appearance: none;
+    -webkit-appearance: none;
+    font-size: 1.05rem;
+    box-shadow: none;
+}
+.mobile-topbar .notif-badge {
+    top: -5px;
+    right: -4px;
+}
+.notif-badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+}
+.notif-dropdown {
+    position: absolute;
+    top: 54px;
+    right: 0;
+    width: 340px;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+body:not(.notif-hover-lock) .notif-wrap:hover .notif-dropdown,
+.notif-wrap.open .notif-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.notif-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid #ececec;
+    background: #faf7e9;
+}
+.notif-head h4 {
+    margin: 0;
+    font-size: 15px;
+    color: #1d1d1d;
+}
+.notif-head span {
+    font-size: 12px;
+    font-weight: 700;
+    color: #cbb90f;
+}
+.notif-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+.notif-item {
+    display: block;
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f1f1;
+    color: #222;
+}
+.notif-item.unread {
+    background: #fff9db;
+}
+.notif-item:hover {
+    background: #f6f6f6;
+}
+.notif-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+.notif-title-row h5 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1d1d1d;
+}
+.notif-title-row span {
+    font-size: 11px;
+    color: #777;
+    white-space: nowrap;
+}
+.notif-item p {
+    margin: 0;
+    font-size: 12px;
+    color: #5a5a5a;
+    line-height: 1.4;
+}
+.notif-empty {
+    padding: 20px 14px;
+    text-align: center;
+    font-size: 13px;
+    color: #666;
+}
+.notif-view-all {
+    display: block;
+    text-align: center;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 11px 14px;
+    color: #18150d;
+    background: #f5f5f5;
+}
+.notif-view-all:hover {
+    background: #cbb90f;
+}
+@media (max-width: 992px) {
+    .sidebar-notification {
+        display: none;
+    }
+    .notif-dropdown {
+        right: -8px;
+        width: min(340px, calc(100vw - 20px));
+    }
+}
+@media (min-width: 993px) {
+    .sidebar {
+        overflow: visible !important;
+        z-index: 1100;
+    }
+    .sidebar nav {
+        overflow-y: auto;
+        overflow-x: visible;
+        max-height: calc(100vh - 220px);
+        padding-right: 0;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .sidebar nav::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
+    }
+    .sidebar-notification {
+        position: relative;
+        z-index: 1500;
+    }
+    .mobile-topbar .notif-wrap {
+        display: none;
+    }
+    #userNotifDesktop {
+        position: relative;
+        z-index: 1501;
+    }
+    #userNotifDesktop .notif-dropdown {
+        top: -8px;
+        left: calc(100% + 14px);
+        right: auto;
+        z-index: 1600;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
+    }
+    #userNotifDesktop .notif-dropdown::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 22px;
+        width: 14px;
+        height: 14px;
+        background: #fff;
+        border-left: 1px solid rgba(0, 0, 0, 0.08);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        transform: rotate(45deg);
+    }
+}
+
 /* Global Custom Confirm Modal */
 #global-confirm-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
