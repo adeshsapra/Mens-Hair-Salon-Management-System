@@ -2,8 +2,16 @@
 include 'connect.php';
 include 'header.php';
 require_once '../admin/filter_helper.php';
+require_once '../admin/pagination_helper.php';
 
 $user_id = (int) $_SESSION['user_id'];
+
+// Pagination
+$records_per_page = 10;
+$current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+if ($current_page < 1) {
+    $current_page = 1;
+}
 
 // Filter Configuration
 $filterConfig = [
@@ -16,6 +24,20 @@ $filterConfig = [
 
 $whereClause = buildSimpleWhere($con, $filterConfig, " AND ");
 
+$count_query = "SELECT COUNT(*) AS total FROM payment p WHERE p.id = {$user_id} $whereClause";
+$count_result = mysqli_query($con, $count_query);
+$total_records = 0;
+if ($count_result) {
+    $count_row = mysqli_fetch_assoc($count_result);
+    $total_records = (int) ($count_row['total'] ?? 0);
+}
+
+$total_pages = max(1, (int) ceil($total_records / $records_per_page));
+if ($current_page > $total_pages) {
+    $current_page = $total_pages;
+}
+$offset = ($current_page - 1) * $records_per_page;
+
 $payment_query = "
     SELECT
         p.*,
@@ -27,6 +49,7 @@ $payment_query = "
     LEFT JOIN membership_plans mp ON p.m_id = mp.mp_id
     WHERE p.id = {$user_id} $whereClause
     ORDER BY p.pay_id DESC
+    LIMIT {$offset}, {$records_per_page}
 ";
 $payment_fetch = mysqli_query($con, $payment_query);
 ?>
@@ -188,4 +211,10 @@ $payment_fetch = mysqli_query($con, $payment_query);
             </tbody>
         </table>
     </div>
+
+    <?php
+    $params = $_GET;
+    unset($params['page']);
+    echo renderPagination($total_records, $current_page, $records_per_page, 'payment_user.php', $params);
+    ?>
 </main>

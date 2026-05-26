@@ -2037,3 +2037,42 @@ tr:nth-child(3) td {
         left: 0 !important;
     }
 }
+
+/* Pagination Styles (shared with admin look) */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    gap: 8px;
+}
+
+.pagination-item {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    color: var(--bg1);
+    font-weight: 600;
+    transition: all 0.3s;
+    background: #fff;
+    text-decoration: none;
+}
+
+.pagination-item:hover {
+    background: var(--bg1);
+    color: var(--bg2);
+    border-color: var(--bg1);
+}
+
+.pagination-item.active {
+    background: var(--bg1);
+    color: var(--bg2);
+    border-color: var(--bg1);
+}
+
+.pagination-item.disabled {
+    color: #ccc;
+    pointer-events: none;
+    border-color: #eee;
+}

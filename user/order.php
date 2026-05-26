@@ -2,8 +2,16 @@
 include 'header.php';
 include 'connect.php';
 require_once '../admin/filter_helper.php';
+require_once '../admin/pagination_helper.php';
 
 $user_id = (int) $_SESSION['user_id'];
+
+// Pagination (groups orders by date+time so an order stays together)
+$records_per_page = 10;
+$current_page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+if ($current_page < 1) {
+    $current_page = 1;
+}
 
 // Filter Configuration
 $filterConfig = [
@@ -15,13 +23,65 @@ $filterConfig = [
 
 $whereClause = buildSimpleWhere($con, $filterConfig, " AND ");
 
-$salesResult = mysqli_query(
+// 1) Find the order groups for this page (each group = one checkout time)
+$total_groups = 0;
+$countGroupsResult = mysqli_query(
     $con,
-    "SELECT * FROM product_sales WHERE id = {$user_id} $whereClause ORDER BY s_date DESC, s_time DESC, s_id DESC"
+    "SELECT COUNT(*) AS total FROM (
+        SELECT s_date, s_time
+        FROM product_sales
+        WHERE id = {$user_id} $whereClause
+        GROUP BY s_date, s_time
+    ) AS grouped_orders"
+);
+if ($countGroupsResult) {
+    $countRow = mysqli_fetch_assoc($countGroupsResult);
+    $total_groups = (int) ($countRow['total'] ?? 0);
+}
+
+$total_pages = max(1, (int) ceil($total_groups / $records_per_page));
+if ($current_page > $total_pages) {
+    $current_page = $total_pages;
+}
+$offset = ($current_page - 1) * $records_per_page;
+
+$groupsResult = mysqli_query(
+    $con,
+    "SELECT s_date, s_time
+     FROM product_sales
+     WHERE id = {$user_id} $whereClause
+     GROUP BY s_date, s_time
+     ORDER BY s_date DESC, s_time DESC
+     LIMIT {$offset}, {$records_per_page}"
 );
 
-if (!$salesResult) {
+if (!$groupsResult) {
     die('Database query failed: ' . mysqli_error($con));
+}
+
+$groupKeys = [];
+while ($g = mysqli_fetch_assoc($groupsResult)) {
+    $groupKeys[] = trim((string) ($g['s_date'] ?? '')) . '|' . trim((string) ($g['s_time'] ?? ''));
+}
+
+$salesResult = null;
+if (!empty($groupKeys)) {
+    // Build a safe OR chain for the page's group keys (values come from DB, still escaped defensively)
+    $groupWhere = [];
+    foreach ($groupKeys as $key) {
+        $parts = explode('|', $key, 2);
+        $d = mysqli_real_escape_string($con, $parts[0] ?? '');
+        $t = mysqli_real_escape_string($con, $parts[1] ?? '');
+        $groupWhere[] = "(s_date = '{$d}' AND s_time = '{$t}')";
+    }
+    $groupWhereSql = implode(' OR ', $groupWhere);
+
+    $salesResult = mysqli_query(
+        $con,
+        "SELECT * FROM product_sales
+         WHERE id = {$user_id} $whereClause AND ({$groupWhereSql})
+         ORDER BY s_date DESC, s_time DESC, s_id DESC"
+    );
 }
 
 $paymentBySaleId = [];
@@ -42,7 +102,8 @@ if ($paymentsResult) {
 }
 
 $orderGroups = [];
-while ($saleRow = mysqli_fetch_assoc($salesResult)) {
+if ($salesResult) {
+    while ($saleRow = mysqli_fetch_assoc($salesResult)) {
     $saleId = (int) $saleRow['s_id'];
     $history = [];
     $historyResult = mysqli_query($con, "SELECT * FROM order_status_updates WHERE s_id = {$saleId} ORDER BY id ASC");
@@ -74,6 +135,7 @@ while ($saleRow = mysqli_fetch_assoc($salesResult)) {
     $saleRow['payment_status'] = $payment ? strtolower(trim($payment['p_status'])) : 'pending';
     $saleRow['payment_intent'] = $payment && !empty($payment['stripe_payment_intent_id']) ? $payment['stripe_payment_intent_id'] : '';
     $orderGroups[$groupKey][] = $saleRow;
+    }
 }
 
 $productLookup = [];
@@ -528,6 +590,12 @@ function getStepIcon($step)
                     </div>
                 <?php endforeach; ?>
             </div>
+
+            <?php
+            $params = $_GET;
+            unset($params['page']);
+            echo renderPagination($total_groups, $current_page, $records_per_page, 'order.php', $params);
+            ?>
         <?php endif; ?>
     </section>
 </main>
